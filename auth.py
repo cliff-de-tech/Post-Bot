@@ -1,14 +1,15 @@
 import requests
 import string
 import random
+import os
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION (Load from environment variables for security) ---
 # Get your credentials from https://www.linkedin.com/developers
-CLIENT_ID = '77hpfpf5cv4m4t'
-CLIENT_SECRET = '***REMOVED***.ASm4Xw=='
+CLIENT_ID = os.getenv('LINKEDIN_CLIENT_ID', '')
+CLIENT_SECRET = os.getenv('LINKEDIN_CLIENT_SECRET', '')
 
 # This must match EXACTLY what you put in the Developer Portal
-REDIRECT_URI = 'http://localhost:8000/callback' 
+REDIRECT_URI = os.getenv('LINKEDIN_REDIRECT_URI', 'http://localhost:8000/callback') 
 
 # --- FUNCTIONS ---
 

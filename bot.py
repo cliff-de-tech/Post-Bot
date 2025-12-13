@@ -2,16 +2,24 @@ import requests
 import json
 import random
 import datetime
+import os
 from dateutil import parser
 import google.generativeai as genai
 
-# --- CONFIGURATION ---
-LINKEDIN_ACCESS_TOKEN = "AQXro0Ks4o2c2vYxGua55sFXAc2aa0A2evmtGp0I1ciae-r-5RWqvQGDnNRIlOjmmt9-THN1OJ84zsg4DTwbjunXex2hZEwfBftzLDF1v4Eh8zteQYDWUJLpOq62kBaNuYjHqajmdn_c49WPnxxfCD6Y6oczqLyUWCJL6mgLaJdEUHMOk8zMyHCKXnFg_Btd_sV-3tJzdLe1jVjtN7HXmLKqT747rJTTdDXc_bu2VxqTxSrib1pjttlAAeLbQPY8qM6kUrIMgBjn3tqJppUnpMjGYduMcyvWhDZ3xGWNKVulAe3wbRyQ-iVzVFe1D9KpskJDvu6ern_CfSh-Qzx1_7nH0BTwXw"
-LINKEDIN_USER_URN = "Q7k8k9_VEs"
-GITHUB_USERNAME = "cliff-de-tech" # e.g., 'torvalds'
+# --- CONFIGURATION (Load from environment variables for security) ---
+# For local testing: create a .env file or set these manually
+# For GitHub Actions: secrets are automatically injected
+LINKEDIN_ACCESS_TOKEN = os.getenv('LINKEDIN_ACCESS_TOKEN', '')
+LINKEDIN_USER_URN = os.getenv('LINKEDIN_USER_URN', '')
+GITHUB_USERNAME = os.getenv('GITHUB_USERNAME', 'cliff-de-tech')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 
-# Google Gemini API Key (FREE!)
-GEMINI_API_KEY = "AIzaSyCJE68mgN7XdYh5rNSPhUieyUFgxQWj0r0"
+# Validate credentials are set
+if not LINKEDIN_ACCESS_TOKEN or not LINKEDIN_USER_URN or not GEMINI_API_KEY:
+    print("⚠️  WARNING: Missing credentials!")
+    print("   Set environment variables: LINKEDIN_ACCESS_TOKEN, LINKEDIN_USER_URN, GEMINI_API_KEY")
+    print("   Or create a .env file in the project directory")
+
 genai.configure(api_key=GEMINI_API_KEY)
 
 # --- LINKEDIN PERSONA (AI Personality) ---

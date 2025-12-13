@@ -4,8 +4,8 @@ import random
 
 # --- CONFIGURATION ---
 # Get your credentials from https://www.linkedin.com/developers
-CLIENT_ID = 'your_client_id_here'
-CLIENT_SECRET = 'your_client_secret_here'
+CLIENT_ID = '77hpfpf5cv4m4t'
+CLIENT_SECRET = '***REMOVED***.ASm4Xw=='
 
 # This must match EXACTLY what you put in the Developer Portal
 REDIRECT_URI = 'http://localhost:8000/callback' 

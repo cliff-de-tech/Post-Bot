@@ -4,7 +4,14 @@ import random
 import datetime
 import os
 from dateutil import parser
-import google.generativeai as genai
+from groq import Groq
+
+# Load .env file for local development
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, will use system environment variables
 
 # --- CONFIGURATION (Load from environment variables for security) ---
 # For local testing: create a .env file or set these manually
@@ -12,15 +19,16 @@ import google.generativeai as genai
 LINKEDIN_ACCESS_TOKEN = os.getenv('LINKEDIN_ACCESS_TOKEN', '')
 LINKEDIN_USER_URN = os.getenv('LINKEDIN_USER_URN', '')
 GITHUB_USERNAME = os.getenv('GITHUB_USERNAME', 'cliff-de-tech')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
 # Validate credentials are set
-if not LINKEDIN_ACCESS_TOKEN or not LINKEDIN_USER_URN or not GEMINI_API_KEY:
+if not LINKEDIN_ACCESS_TOKEN or not LINKEDIN_USER_URN or not GROQ_API_KEY:
     print("⚠️  WARNING: Missing credentials!")
-    print("   Set environment variables: LINKEDIN_ACCESS_TOKEN, LINKEDIN_USER_URN, GEMINI_API_KEY")
+    print("   Set environment variables: LINKEDIN_ACCESS_TOKEN, LINKEDIN_USER_URN, GROQ_API_KEY")
     print("   Or create a .env file in the project directory")
 
-genai.configure(api_key=GEMINI_API_KEY)
+# Initialize Groq client
+client = Groq(api_key=GROQ_API_KEY)
 
 # --- LINKEDIN PERSONA (AI Personality) ---
 LINKEDIN_PERSONA = """You are writing LinkedIn posts for Clifford (Darko) Opoku-Sarkodie, a Creative Technologist, Web Developer, and CS Student.
@@ -307,22 +315,20 @@ Requirements:
 {LINKEDIN_PERSONA}
 """
         
-        # Call Gemini API
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(
-            context_prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.7,
-                max_output_tokens=3000,
-            )
+        # Call Groq API
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": context_prompt}],
+            temperature=0.7,
+            max_tokens=3000,
         )
         
-        post_content = response.text.strip()
+        post_content = response.choices[0].message.content.strip()
         return post_content
         
     except Exception as e:
-        print(f"⚠️  Error generating post with Gemini: {e}")
-        print("💡 Tip: Make sure your Gemini API key is valid and set in GEMINI_API_KEY")
+        print(f"⚠️  Error generating post with Groq: {e}")
+        print("💡 Tip: Make sure your Groq API key is valid and set in GROQ_API_KEY")
         return None
 
 # --- THE POSTING FUNCTION ---

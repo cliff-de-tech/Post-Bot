@@ -1,0 +1,142 @@
+# =============================================================================
+# API Contract Validation Workflow
+# =============================================================================
+# This workflow ensures TypeScript types stay in sync with the FastAPI backend.
+# It starts the backend, regenerates types from OpenAPI spec, and fails if
+# the generated types differ from committed types.
+#
+# Runs on: Push to main, PRs to main, Manual trigger
+# =============================================================================
+
+name: API Contract Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'shared/contracts/**'
+      - 'scripts/generate-api-types.js'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'shared/contracts/**'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  validate-contracts:
+    name: Validate API Contracts
+    runs-on: ubuntu-latest
+    
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Checkout repository
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Step 2: Setup Python for FastAPI backend
+      # -----------------------------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      # -----------------------------------------------------------------------
+      # Step 3: Install Python dependencies
+      # -----------------------------------------------------------------------
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          
+      # -----------------------------------------------------------------------
+      # Step 4: Setup Node.js for TypeScript generation
+      # -----------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # -----------------------------------------------------------------------
+      # Step 5: Install Node dependencies
+      # -----------------------------------------------------------------------
+      - name: Install Node dependencies
+        run: npm install
+
+      # -----------------------------------------------------------------------
+      # Step 6: Start FastAPI backend in background
+      # We need the backend running to fetch the OpenAPI spec
+      # -----------------------------------------------------------------------
+      - name: Start FastAPI backend
+        run: |
+          cd backend
+          python app.py &
+          # Wait for backend to be ready
+          echo "Waiting for backend to start..."
+          sleep 10
+          # Verify backend is responding
+          curl --retry 5 --retry-delay 2 --retry-connrefused http://localhost:8000/health || exit 1
+          echo "Backend is ready!"
+
+      # -----------------------------------------------------------------------
+      # Step 7: Backup existing types (if committed)
+      # -----------------------------------------------------------------------
+      - name: Backup existing types
+        run: |
+          if [ -f shared/contracts/index.d.ts ]; then
+            cp shared/contracts/index.d.ts shared/contracts/index.d.ts.backup
+            echo "Backed up existing types"
+          else
+            echo "No existing types to backup (first run)"
+            touch shared/contracts/index.d.ts.backup
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 8: Fetch OpenAPI spec and regenerate types
+      # -----------------------------------------------------------------------
+      - name: Regenerate TypeScript types
+        run: |
+          npm run generate:types
+          echo "Types regenerated successfully"
+
+      # -----------------------------------------------------------------------
+      # Step 9: Compare generated types with committed types
+      # Fails if there's any difference (drift detected)
+      # -----------------------------------------------------------------------
+      - name: Check for type drift
+        run: |
+          if [ -s shared/contracts/index.d.ts.backup ]; then
+            echo "Comparing generated types with committed types..."
+            if diff -q shared/contracts/index.d.ts shared/contracts/index.d.ts.backup > /dev/null 2>&1; then
+              echo "✅ No drift detected - types are in sync!"
+            else
+              echo "❌ DRIFT DETECTED - Types have changed!"
+              echo ""
+              echo "The OpenAPI spec has changed but committed types are outdated."
+              echo "Run 'npm run generate:types' locally and commit the updated types."
+              echo ""
+              echo "=== Diff ==="
+              diff shared/contracts/index.d.ts shared/contracts/index.d.ts.backup || true
+              exit 1
+            fi
+          else
+            echo "⚠️ No committed types found - this is expected for first run"
+            echo "Generated types are at: shared/contracts/index.d.ts"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 10: Upload generated types as artifact (for debugging)
+      # -----------------------------------------------------------------------
+      - name: Upload generated types
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: generated-types
+          path: |
+            shared/contracts/index.d.ts
+            shared/contracts/openapi.json
+          retention-days: 7

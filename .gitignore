@@ -137,3 +137,8 @@ logs/
 # GENERATED FILES
 # ========================================
 last_generated_post.txt
+
+# Shared contracts (auto-generated from OpenAPI)
+shared/contracts/*.ts
+shared/contracts/*.json
+!shared/contracts/README.md

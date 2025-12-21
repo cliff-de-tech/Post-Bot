@@ -211,6 +211,31 @@ cd web && npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to access the dashboard.
 
+### API Documentation
+
+The FastAPI backend provides OpenAPI documentation at stable URLs:
+
+| Endpoint | Description |
+|----------|-------------|
+| `/openapi.json` | OpenAPI 3.0 specification (JSON) |
+| `/docs` | Interactive Swagger UI documentation |
+| `/redoc` | ReDoc alternative documentation |
+
+**Local development:**
+- OpenAPI spec: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+**Production:** The same endpoints are available at your deployed backend URL.
+
+```bash
+# Download OpenAPI spec for code generation
+curl http://localhost:8000/openapi.json > openapi.json
+
+# Or in production
+curl https://your-backend.railway.app/openapi.json > openapi.json
+```
+
 ---
 
 ## Project Structure

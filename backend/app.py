@@ -137,7 +137,35 @@ except ImportError:
     api_limiter = None
     RateLimitExceededError = Exception
 
-app = FastAPI(title="LinkedIn Post Bot API")
+app = FastAPI(
+    title="LinkedIn Post Bot API",
+    description="""
+    AI-powered LinkedIn content automation API.
+    
+    ## Features
+    - Generate LinkedIn posts from GitHub activity
+    - Multiple AI writing templates (Standard, Build in Public, Thought Leadership, Job Search)
+    - Post history and analytics
+    - Image selection from Unsplash
+    - Scheduled posting
+    
+    ## OpenAPI Documentation
+    - OpenAPI JSON: `/openapi.json`
+    - Interactive Docs (Swagger): `/docs`  
+    - ReDoc: `/redoc`
+    """,
+    version="1.0.0",
+    openapi_url="/openapi.json",  # Explicit stable URL for OpenAPI spec
+    docs_url="/docs",  # Swagger UI
+    redoc_url="/redoc",  # ReDoc alternative
+    contact={
+        "name": "LinkedIn Post Bot",
+        "url": "https://github.com/cliff-de-tech/Linkedin-Post-Bot",
+    },
+    license_info={
+        "name": "MIT",
+    },
+)
 
 # Initialize databases
 if init_db:

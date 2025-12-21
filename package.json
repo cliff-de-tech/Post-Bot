@@ -1,0 +1,31 @@
+{
+    "name": "linkedin-post-bot",
+    "version": "1.0.0",
+    "description": "AI-powered LinkedIn content automation from GitHub activity",
+    "private": true,
+    "scripts": {
+        "dev": "cd web && npm run dev",
+        "build": "cd web && npm run build",
+        "start": "cd web && npm run start",
+        "lint": "cd web && npm run lint",
+        "backend": "cd backend && python app.py",
+        "generate:types": "curl -s http://localhost:8000/openapi.json > shared/contracts/openapi.json && npx openapi-typescript shared/contracts/openapi.json -o shared/contracts/api.ts",
+        "postinstall": "echo 'Run npm run generate:types after starting backend to generate API types'"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/cliff-de-tech/Linkedin-Post-Bot.git"
+    },
+    "keywords": [
+        "linkedin",
+        "automation",
+        "github",
+        "ai",
+        "content-generation"
+    ],
+    "author": "Clifford Opoku-Sarkodie",
+    "license": "MIT",
+    "devDependencies": {
+        "openapi-typescript": "^7.0.0"
+    }
+}

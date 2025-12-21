@@ -70,11 +70,14 @@ def parse_event(event):
     if event_type == 'PushEvent':
         payload = event.get('payload', {})
         commits = len(payload.get('commits', []))
+        # Skip pushes with 0 commits (e.g., branch deletes, force pushes with no new commits)
+        if commits == 0:
+            return None
         activity.update({
             'type': 'push',
             'icon': '🚀',
             'title': f"Pushed {commits} commit{'s' if commits != 1 else ''} to {repo}",
-            'description': f"{commits} new commits",
+            'description': f"{commits} new commit{'s' if commits != 1 else ''}",
             'context': {
                 'type': 'push',
                 'commits': commits,

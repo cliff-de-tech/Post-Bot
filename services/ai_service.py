@@ -76,9 +76,28 @@ if GROQ_API_KEY:
         client = None
 
 
-def generate_post_with_ai(context_data):
-    """Use Groq/Gemini-style model to draft a LinkedIn post based on context."""
+def generate_post_with_ai(context_data, groq_api_key: str = None):
+    """Use Groq/Gemini-style model to draft a LinkedIn post based on context.
+    
+    Args:
+        context_data: Dictionary with activity context
+        groq_api_key: Optional per-user Groq API key. Falls back to env var if not provided.
+    """
     print("🧠 AI service: generating post...")
+    
+    # Determine which API key to use
+    api_key = groq_api_key or GROQ_API_KEY
+    if not api_key:
+        print("⚠️  No Groq API key provided (neither user key nor GROQ_API_KEY env var)")
+        return None
+    
+    # Create client with the appropriate key
+    try:
+        active_client = Groq(api_key=api_key)
+    except Exception as e:
+        print(f"⚠️  Failed to initialize Groq client: {e}")
+        return None
+    
     try:
         if isinstance(context_data, dict) and context_data.get('type') == 'push':
             context_prompt = f"""
@@ -202,12 +221,8 @@ Requirements:
 {LINKEDIN_PERSONA}
 """
 
-        # Call Groq API
-        if not client:
-            print("⚠️  Groq client not initialized (GROQ_API_KEY missing)")
-            return None
-
-        response = client.chat.completions.create(
+        # Call Groq API with the active client
+        response = active_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": context_prompt}],
             temperature=0.7,

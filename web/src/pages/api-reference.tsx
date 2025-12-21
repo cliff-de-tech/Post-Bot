@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import SEOHead from '@/components/SEOHead';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function APIReference() {
   const router = useRouter();
@@ -123,6 +124,11 @@ export default function APIReference() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <header className="relative bg-white/10 backdrop-blur-lg border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-end gap-4">
+          <ThemeToggle />
+        </div>
+      </header>
       <SEOHead 
         title="API Reference - LinkedIn Post Bot"
         description="Complete API documentation for LinkedIn Post Bot. Integrate and automate your LinkedIn content creation."

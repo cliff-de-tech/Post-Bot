@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useState } from 'react';
 import SEOHead from '@/components/SEOHead';
+import ThemeToggle from '@/components/ThemeToggle';
 import { showToast } from '@/lib/toast';
 
 export default function Support() {
@@ -83,7 +84,7 @@ ${formData.message}
       />
       
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="relative bg-white/10 backdrop-blur-lg border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -95,12 +96,15 @@ ${formData.message}
               LinkedIn Post Bot
             </span>
           </Link>
-          <button
-            onClick={() => router.back()}
-            className="text-gray-600 hover:text-gray-900 font-medium"
-          >
-            ← Back
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="text-gray-600 hover:text-gray-900 font-medium"
+            >
+              ← Back
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

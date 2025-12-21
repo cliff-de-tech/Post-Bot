@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generatePreview, publishPost } from '@/lib/api';
 import { useRouter } from 'next/router';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -86,6 +87,9 @@ export default function Dashboard() {
                 </svg>
                 Settings
               </button>
+              <div className="ml-2">
+                <ThemeToggle />
+              </div>
             </nav>
           </div>
         </div>

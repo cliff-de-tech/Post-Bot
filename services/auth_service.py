@@ -44,18 +44,75 @@ def exchange_code_for_token(code: str, redirect_uri: str):
     access_token = token_data.get('access_token')
     expires_in = token_data.get('expires_in')
 
-    # Use access token to get user id so we can build the URN
-    me_url = 'https://api.linkedin.com/v2/me'
-    me_resp = requests.get(me_url, headers={'Authorization': f'Bearer {access_token}'}, timeout=10)
-    me_resp.raise_for_status()
-    me = me_resp.json()
-    linkedin_id = me.get('id')
+    # Use access token to get user info via OpenID Connect userinfo endpoint
+    userinfo_url = 'https://api.linkedin.com/v2/userinfo'
+    userinfo_resp = requests.get(userinfo_url, headers={'Authorization': f'Bearer {access_token}'}, timeout=10)
+    userinfo_resp.raise_for_status()
+    userinfo = userinfo_resp.json()
+    linkedin_id = userinfo.get('sub')  # 'sub' contains the user ID in OpenID Connect
     if not linkedin_id:
         raise RuntimeError('Failed to fetch LinkedIn user id')
     linkedin_user_urn = f'urn:li:person:{linkedin_id}'
 
     expires_at = int(time.time()) + int(expires_in) if expires_in else None
     save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=expires_at)
+
+    return {
+        'linkedin_user_urn': linkedin_user_urn,
+        'access_token': access_token,
+        'expires_at': expires_at
+    }
+
+
+def get_authorize_url_for_user(client_id: str, redirect_uri: str, state: str):
+    """Return the LinkedIn authorization URL using per-user credentials."""
+    if not client_id:
+        raise RuntimeError('LinkedIn Client ID not provided')
+    params = {
+        'response_type': 'code',
+        'client_id': client_id,
+        'redirect_uri': redirect_uri,
+        'scope': SCOPE,
+        'state': state
+    }
+    q = '&'.join([f"{k}={quote(v)}" for k, v in params.items()])
+    return f"https://www.linkedin.com/oauth/v2/authorization?{q}"
+
+
+def exchange_code_for_token_with_user(client_id: str, client_secret: str, code: str, redirect_uri: str, user_id: str = None):
+    """Exchange authorization code for access token using per-user credentials."""
+    if not client_id or not client_secret:
+        raise RuntimeError('LinkedIn Client ID or Client Secret not provided')
+
+    token_url = 'https://www.linkedin.com/oauth/v2/accessToken'
+    data = {
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': redirect_uri,
+        'client_id': client_id,
+        'client_secret': client_secret
+    }
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    resp = requests.post(token_url, data=data, headers=headers, timeout=10)
+    resp.raise_for_status()
+    token_data = resp.json()
+    access_token = token_data.get('access_token')
+    expires_in = token_data.get('expires_in')
+
+    # Use access token to get user info via OpenID Connect userinfo endpoint
+    userinfo_url = 'https://api.linkedin.com/v2/userinfo'
+    userinfo_resp = requests.get(userinfo_url, headers={'Authorization': f'Bearer {access_token}'}, timeout=10)
+    userinfo_resp.raise_for_status()
+    userinfo = userinfo_resp.json()
+    linkedin_id = userinfo.get('sub')
+    if not linkedin_id:
+        raise RuntimeError('Failed to fetch LinkedIn user id')
+    linkedin_user_urn = f'urn:li:person:{linkedin_id}'
+
+    expires_at = int(time.time()) + int(expires_in) if expires_in else None
+    
+    # Save token with user_id association
+    save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=expires_at, user_id=user_id)
 
     return {
         'linkedin_user_urn': linkedin_user_urn,

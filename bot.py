@@ -759,7 +759,7 @@ def post_to_linkedin(message_text, image_asset_urn=None):
 # --- MAIN BRAIN ---
 if __name__ == "__main__":
     # Set TEST_MODE = True to preview posts without posting to LinkedIn
-    TEST_MODE = False  # Change to False when you're ready to post live
+    TEST_MODE = True    # Change to False when you're ready to post live
     
     print("🤖 LinkedIn Post Bot Starting...\n")
     if TEST_MODE:

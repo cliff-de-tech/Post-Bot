@@ -25,25 +25,32 @@ def init_db():
         linkedin_user_urn TEXT UNIQUE,
         access_token TEXT,
         refresh_token TEXT,
-        expires_at INTEGER
+        expires_at INTEGER,
+        user_id TEXT
     )
     ''')
+    # Add user_id column if it doesn't exist (migration for existing DBs)
+    try:
+        cur.execute('ALTER TABLE accounts ADD COLUMN user_id TEXT')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     conn.commit()
     conn.close()
 
 
-def save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=None):
+def save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=None, user_id=None):
     init_db()
     conn = get_conn()
     cur = conn.cursor()
     cur.execute('''
-    INSERT INTO accounts (linkedin_user_urn, access_token, refresh_token, expires_at)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO accounts (linkedin_user_urn, access_token, refresh_token, expires_at, user_id)
+    VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(linkedin_user_urn) DO UPDATE SET
         access_token=excluded.access_token,
         refresh_token=excluded.refresh_token,
-        expires_at=excluded.expires_at
-    ''', (linkedin_user_urn, access_token, refresh_token, expires_at))
+        expires_at=excluded.expires_at,
+        user_id=excluded.user_id
+    ''', (linkedin_user_urn, access_token, refresh_token, expires_at, user_id))
     conn.commit()
     conn.close()
 
@@ -52,7 +59,7 @@ def get_token_by_urn(linkedin_user_urn):
     init_db()
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute('SELECT linkedin_user_urn, access_token, refresh_token, expires_at FROM accounts WHERE linkedin_user_urn=?', (linkedin_user_urn,))
+    cur.execute('SELECT linkedin_user_urn, access_token, refresh_token, expires_at, user_id FROM accounts WHERE linkedin_user_urn=?', (linkedin_user_urn,))
     row = cur.fetchone()
     conn.close()
     if not row:
@@ -61,7 +68,27 @@ def get_token_by_urn(linkedin_user_urn):
         'linkedin_user_urn': row[0],
         'access_token': row[1],
         'refresh_token': row[2],
-        'expires_at': row[3]
+        'expires_at': row[3],
+        'user_id': row[4]
+    }
+
+
+def get_token_by_user_id(user_id):
+    """Get token for a specific user."""
+    init_db()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute('SELECT linkedin_user_urn, access_token, refresh_token, expires_at, user_id FROM accounts WHERE user_id=?', (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        'linkedin_user_urn': row[0],
+        'access_token': row[1],
+        'refresh_token': row[2],
+        'expires_at': row[3],
+        'user_id': row[4]
     }
 
 

@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SEOHead from '@/components/SEOHead';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function Custom404() {
   const router = useRouter();
@@ -29,6 +30,9 @@ export default function Custom404() {
       />
       
       <div className="max-w-2xl w-full text-center">
+        <div className="absolute top-6 right-6">
+          <ThemeToggle />
+        </div>
         {/* Animated 404 Icon */}
         <div className="mb-8 relative">
           <div className="absolute inset-0 flex items-center justify-center">
@@ -40,8 +44,8 @@ export default function Custom404() {
             </h1>
             <div className="flex items-center justify-center space-x-2">
               <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
-              <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce animation-delay-100"></div>
+              <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce animation-delay-200"></div>
             </div>
           </div>
         </div>

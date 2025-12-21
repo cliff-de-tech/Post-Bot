@@ -1,229 +1,297 @@
 # LinkedIn Post Bot 🤖
 
-An automated Python bot that posts engaging content to LinkedIn on a schedule. Perfect for maintaining consistent presence without being glued to social media.
+An AI-powered LinkedIn content automation platform that transforms your GitHub activity into engaging LinkedIn posts. Available as both a **command-line bot** and a **full-featured web application**.
 
-## Features
+![LinkedIn Post Bot](https://img.shields.io/badge/LinkedIn-Post%20Bot-0A66C2?style=for-the-badge&logo=linkedin)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![Python](https://img.shields.io/badge/Python-3.14-blue?style=for-the-badge&logo=python)
+![Groq](https://img.shields.io/badge/Groq-AI-orange?style=for-the-badge)
 
-✨ **60-Day Content Library** - Pre-written posts covering tech topics, career advice, coding best practices, and personal growth
-🔐 **Secure OAuth2 Authentication** - Uses LinkedIn's official OAuth flow for safe credential handling
-⚙️ **Automated Posting** - Randomly selects posts and publishes them to your LinkedIn profile
-🎯 **Customizable Content** - Easily add, modify, or replace posts in the database
-📅 **Scalable** - Can be deployed to cloud services for 24/7 operation
+## ✨ Features
 
-## Project Structure
+### Web Application
+- 🎨 **Modern Dashboard** - Beautiful dark/light mode UI with real-time stats
+- 🤖 **Bot Mode Panel** - Scan GitHub activity, generate AI posts, and publish in one flow
+- � **Custom Day Filters** - Scan GitHub activity from 1-30 days
+- 🎯 **Activity Type Filters** - Filter by Push, PR, Commits, New Repo, or Generic posts
+- 💡 **Smart Suggestions** - Get alternative activities when your preferred type isn't found
+- 🖼️ **Unsplash Integration** - Add beautiful images to your posts
+- 📊 **Analytics** - Track your posting history and engagement
+- � **Multi-tenant Auth** - Per-user credentials with Clerk authentication
 
+### CLI Bot
+- ⚡ **Automated Posting** - Schedule daily posts with cron/Task Scheduler
+- 🧠 **AI Generation** - Groq LLM creates engaging, natural posts
+- 📚 **60-Day Content Library** - Pre-written fallback posts
+- 🔄 **GitHub Activity Sync** - Auto-fetch your coding activity
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: Web Application (Recommended)
+
+#### Prerequisites
+- Node.js 18+
+- Python 3.10+
+- Clerk account (free tier available)
+
+#### 1. Clone & Install
+
+```bash
+git clone https://github.com/cliff-de-tech/linkedin-post-bot.git
+cd linkedin-post-bot
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install frontend dependencies
+cd web
+npm install
 ```
-.
-├── auth.py          # OAuth authentication & token exchange
-├── bot.py           # Main posting logic & content database
-└── README.md        # This file
-```
 
-## Prerequisites
+#### 2. Configure Environment Variables
 
-- Python 3.7+
-- `requests` library
-- `python-dateutil` library
-- LinkedIn Developer Account with OAuth credentials
-
-## Setup Instructions
-
-### 1. Create a LinkedIn App
-
-1. Go to [LinkedIn Developers](https://www.linkedin.com/developers)
-2. Create a new app with your company/profile info
-3. Under **Auth** settings, set your Authorized Redirect URL to: `http://localhost:8000/callback`
-4. Copy your **Client ID** and **Client Secret**
-
-### 2. Configure Environment Variables
-
-1. Copy the example environment file:
+**Backend `.env`:**
 ```bash
 cp .env.example .env
 ```
 
-2. Edit `.env` and fill in your credentials:
+Edit `.env`:
+```env
+# LinkedIn OAuth (get from LinkedIn Developers Portal)
+LINKEDIN_CLIENT_ID=your_client_id
+LINKEDIN_CLIENT_SECRET=your_client_secret
+
+# AI Generation (get from console.groq.com)
+GROQ_API_KEY=your_groq_api_key
+
+# GitHub (your username)
+GITHUB_USERNAME=your_github_username
+
+# Optional: Images
+UNSPLASH_ACCESS_KEY=your_unsplash_key
+
+# Clerk Auth (for multi-user support)
+CLERK_ISSUER=https://your-clerk-instance.clerk.accounts.dev
+```
+
+**Frontend `web/.env.local`:**
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_key
+CLERK_SECRET_KEY=sk_test_your_key
+```
+
+#### 3. Start the Application
+
+**Terminal 1 - Backend:**
 ```bash
-LINKEDIN_CLIENT_ID=your_client_id_here
-LINKEDIN_CLIENT_SECRET=your_client_secret_here
-GROQ_API_KEY=your_groq_api_key_here
-# Add other optional keys as needed
+cd backend
+py app.py
+# or: python app.py
 ```
 
-See [.env.example](.env.example) for detailed instructions on obtaining each API key.
-
-### 3. Run Authentication
-
-Run the authentication script to get your tokens:
-
+**Terminal 2 - Frontend:**
 ```bash
-python auth.py
+cd web
+npm run dev
 ```
 
-Follow these steps:
-1. Click the printed authorization link
-2. Log in with your LinkedIn account
-3. You'll see a "Site can't be reached" error (this is expected!)
-4. Copy the `code` parameter from the URL bar
-5. Paste it when prompted
-6. The script will display your `ACCESS_TOKEN` and `USER_URN`
-
-### 4. Update Bot Credentials
-
-Edit `bot.py` and replace:
-```python
-ACCESS_TOKEN = "your_access_token_here"
-USER_URN = "your_user_urn_here"
-```
-
-### 5. Install Dependencies
-
-```bash
-pip install requests python-dateutil
-```
-
-## Usage
-
-### Manual Post
-
-Run the bot once to post a random message:
-
-```bash
-python bot.py
-```
-
-### Scheduled Posting (Every Day)
-
-**Windows (Task Scheduler):**
-```powershell
-schtasks /create /tn "LinkedInBot" /tr "python C:\path\to\bot.py" /sc daily /st 09:00
-```
-
-**macOS/Linux (Crontab):**
-```bash
-0 9 * * * /usr/bin/python3 /path/to/bot.py
-```
-
-**Cloud (Render/Heroku):**
-Deploy `bot.py` with a scheduler service or cron job.
-
-## Content Database
-
-The bot includes 60 pre-written posts organized by topic:
-
-- **Week 1**: Automation & Python Fundamentals
-- **Week 2**: Coding Best Practices
-- **Week 3**: Mindset & Career Growth
-- **Week 4**: Developer Tools & Workflow
-- **Week 5**: Creativity & Innovation
-- **Week 6**: Problem Solving
-- **Week 7**: Personal Development
-- **Week 8**: Future of Tech
-- **Week 9**: Reflection & Gratitude
-
-Each post is optimized for engagement with relevant hashtags and compelling messaging.
-
-### Adding Custom Posts
-
-Edit `bot.py` and add your posts to the `POST_IDEAS` list:
-
-```python
-POST_IDEAS = [
-    """Your post content here with #hashtags""",
-    """Another post...""",
-]
-```
-
-## How It Works
-
-1. **Authentication** (`auth.py`):
-   - Generates a LinkedIn OAuth authorization URL
-   - Exchanges the authorization code for an access token
-   - Retrieves your unique LinkedIn user ID (URN)
-
-2. **Posting** (`bot.py`):
-   - Selects a random post from the content library
-   - Uses LinkedIn's UGC (User Generated Content) API to publish
-   - Posts as a public update visible to your network
-
-## API Details
-
-### LinkedIn API Endpoints Used
-
-- **Authorization**: `https://www.linkedin.com/oauth/v2/authorization`
-- **Token Exchange**: `https://www.linkedin.com/oauth/v2/accessToken`
-- **User Info**: `https://api.linkedin.com/v2/userinfo`
-- **Post Creation**: `https://api.linkedin.com/v2/ugcPosts`
-
-### Required Permissions
-
-- `openid` - OpenID Connect
-- `profile` - User profile information
-- `w_member_social` - **Post on your behalf**
-- `email` - Email access
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| "Invalid client" error | Double-check CLIENT_ID and CLIENT_SECRET in `auth.py` |
-| Token expired | Run `auth.py` again to get a fresh token |
-| Post fails with 401 | ACCESS_TOKEN may be expired; re-authenticate |
-| "Site can't be reached" on callback | This is expected! Copy the code from the URL bar |
-| Bot doesn't post | Verify the bot has the `w_member_social` permission in LinkedIn app settings |
-
-## Security Notes
-
-⚠️ **IMPORTANT**: 
-- Never commit `auth.py` or `bot.py` with real credentials to public repositories
-- Use environment variables or `.env` files for production deployments
-- Regenerate your tokens regularly
-- The example credentials in the files are expired and non-functional
-
-## Deployment Options
-
-### Render (Free Tier)
-1. Push code to GitHub
-2. Create new Web Service on Render
-3. Set up cron job with external service (cron-job.org)
-
-### AWS Lambda
-1. Package bot.py with dependencies
-2. Create CloudWatch Events rule (daily trigger)
-3. Connect to Lambda function
-
-### DigitalOcean App Platform
-1. Deploy from GitHub
-2. Use background jobs for scheduling
-
-## Future Enhancements
-
-🚀 Potential upgrades:
-- AI-powered post generation with OpenAI
-- Sentiment analysis for engagement optimization
-- Image/media attachments
-- Hashtag trend integration
-- Analytics dashboard
-- Multi-account posting
-- Comment response automation
-
-## Contributing
-
-Have ideas to improve the bot? Feel free to fork and submit pull requests!
-
-## License
-
-MIT License - Use freely for personal and commercial projects
-
-## Support
-
-For issues with:
-- **LinkedIn API**: Check [LinkedIn Developer Docs](https://learn.microsoft.com/en-us/linkedin/shared/api-reference/api-reference)
-- **Bot code**: Review the inline comments in `auth.py` and `bot.py`
-- **Scheduling**: Search for OS-specific task scheduler guides
+#### 4. Open in Browser
+Visit `http://localhost:3000` and complete the onboarding flow!
 
 ---
 
-**Made with ❤️ for the tech community**
+### Option 2: CLI Bot (Standalone)
+
+For automated daily posting without the web UI:
+
+```bash
+# 1. Configure credentials in bot.py or .env
+# 2. Run authentication
+python auth.py
+
+# 3. Run the bot
+python bot.py
+
+# 4. Schedule (optional)
+# Windows: schtasks /create /tn "LinkedInBot" /tr "python bot.py" /sc daily /st 09:00
+# Linux/Mac: crontab -e → 0 9 * * * /usr/bin/python3 /path/to/bot.py
+```
+
+---
+
+## 🔑 Getting API Keys
+
+### LinkedIn Developer App
+1. Go to [LinkedIn Developers](https://www.linkedin.com/developers)
+2. Create new app → Set redirect URL: `http://localhost:8000/auth/linkedin/callback`
+3. Request these OAuth scopes: `openid`, `profile`, `email`, `w_member_social`
+4. Copy **Client ID** and **Client Secret**
+
+### Groq AI Key
+1. Visit [console.groq.com](https://console.groq.com)
+2. Create account → API Keys → Generate new key
+3. Free tier includes generous rate limits
+
+### Unsplash (Optional)
+1. Visit [unsplash.com/developers](https://unsplash.com/developers)
+2. Create app → Copy **Access Key**
+
+### Clerk Authentication
+1. Visit [clerk.com](https://clerk.com)
+2. Create application → Copy **Publishable Key** and **Secret Key**
+3. Set Frontend API URL in Clerk dashboard
+
+---
+
+## 📁 Project Structure
+
+```
+linkedin-post-bot/
+├── web/                    # Next.js Frontend
+│   ├── src/
+│   │   ├── pages/          # Routes (dashboard, settings, onboarding)
+│   │   ├── components/     # UI Components
+│   │   └── lib/            # Utilities & API clients
+│   └── public/             # Static assets
+├── backend/                # FastAPI Backend
+│   ├── app.py              # Main API server
+│   └── middleware/         # Auth middleware
+├── services/               # Core Services
+│   ├── ai_service.py       # Groq AI integration
+│   ├── github_activity.py  # GitHub API
+│   ├── linkedin_service.py # LinkedIn posting
+│   ├── image_service.py    # Unsplash images
+│   ├── user_settings.py    # Settings storage
+│   └── token_store.py      # OAuth token management
+├── bot.py                  # Standalone CLI bot
+├── auth.py                 # OAuth helper
+└── .env.example            # Environment template
+```
+
+---
+
+## 🖥️ Using the Web App
+
+### Dashboard Overview
+- **Stats Overview** - Posts generated, published, drafts count
+- **Bot Mode Panel** - Main workflow for generating posts
+- **GitHub Activity Feed** - See your recent coding activity
+- **Post Editor** - Manually create posts with custom context
+
+### Bot Mode Workflow
+1. **Select Time Range** - Choose 1, 3, 7, 14, or 30 days
+2. **Filter Activity Type** - All, Push, PR, Commits, New Repo, Generic
+3. **Scan GitHub** - Fetches your recent activity
+4. **Generate Posts** - AI creates LinkedIn-optimized content
+5. **Review & Edit** - Modify posts before publishing
+6. **Add Images** - Optional Unsplash image selection
+7. **Publish** - Post to LinkedIn (supports test mode)
+
+### Settings Page
+- Save credentials individually with dedicated Save buttons
+- Connect LinkedIn via OAuth
+- View saved credentials (masked for security)
+- Buttons show "✓ Saved" when credentials are stored
+
+---
+
+## 🛠️ Development
+
+### Run in Development Mode
+```bash
+# Backend with auto-reload
+cd backend && uvicorn app:app --reload --port 8000
+
+# Frontend with hot-reload
+cd web && npm run dev
+```
+
+### Build for Production
+```bash
+cd web
+npm run build
+npm run start
+```
+
+### Lint & Type Check
+```bash
+cd web
+npm run lint
+npm run build  # TypeScript check
+```
+
+---
+
+## 🔒 Security Features
+
+- **Per-user credentials** - Each user stores their own API keys
+- **Masked secrets** - API keys shown as `gsk_xxxx...xxxx` in UI
+- **Clerk JWT verification** - Secure API endpoints
+- **CORS protection** - API only accepts authorized origins
+- **Environment variables** - Never commit secrets to git
+
+---
+
+## 🌐 Deployment
+
+### Vercel (Frontend)
+```bash
+cd web
+npx vercel --prod
+```
+
+### Railway/Render (Backend)
+Deploy `backend/` with Python runtime, set environment variables.
+
+### Docker (Coming Soon)
+```bash
+docker-compose up -d
+```
+
+---
+
+## 🐛 Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "No GitHub activity found" | Check GITHUB_USERNAME, extend day range |
+| LinkedIn auth fails | Verify Client ID/Secret, check redirect URL |
+| AI posts are empty | Check GROQ_API_KEY is valid |
+| Credentials not saving | Restart backend, check console for errors |
+| "Invalid token" error | Re-authenticate with LinkedIn |
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Scheduled posting (queue posts for specific times)
+- [ ] Multi-account support
+- [ ] Analytics dashboard with engagement metrics
+- [ ] AI persona customization
+- [ ] Docker deployment package
+- [ ] Mobile app (React Native)
+
+---
+
+## 📄 License
+
+MIT License - Use freely for personal and commercial projects.
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+---
+
+**Made with ❤️ by [cliff-de-tech](https://github.com/cliff-de-tech)**
 
 Happy posting! 🚀

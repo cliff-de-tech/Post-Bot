@@ -45,6 +45,26 @@ def save_user_settings(user_id: str, settings: dict):
     import time
     timestamp = int(time.time())
     
+    # First, get existing settings to merge with new ones
+    existing = get_user_settings(user_id) or {}
+    
+    # Merge: only update fields that are explicitly provided and not empty
+    def merge_field(key):
+        new_val = settings.get(key)
+        # If new value is provided and not empty, use it; otherwise keep existing
+        if new_val is not None and new_val != '':
+            return new_val
+        return existing.get(key) or None
+    
+    merged = {
+        'linkedin_client_id': merge_field('linkedin_client_id'),
+        'linkedin_client_secret': merge_field('linkedin_client_secret'),
+        'github_username': merge_field('github_username'),
+        'groq_api_key': merge_field('groq_api_key'),
+        'unsplash_access_key': merge_field('unsplash_access_key'),
+        'persona': settings.get('persona') or existing.get('persona') or {},
+    }
+    
     cur.execute('''
     INSERT INTO user_settings 
     (user_id, linkedin_client_id, linkedin_client_secret, github_username, 
@@ -60,12 +80,12 @@ def save_user_settings(user_id: str, settings: dict):
         updated_at=excluded.updated_at
     ''', (
         user_id,
-        settings.get('linkedin_client_id'),
-        settings.get('linkedin_client_secret'),
-        settings.get('github_username'),
-        settings.get('groq_api_key'),
-        settings.get('unsplash_access_key'),
-        json.dumps(settings.get('persona', {})),
+        merged['linkedin_client_id'],
+        merged['linkedin_client_secret'],
+        merged['github_username'],
+        merged['groq_api_key'],
+        merged['unsplash_access_key'],
+        json.dumps(merged['persona']),
         timestamp,
         timestamp
     ))

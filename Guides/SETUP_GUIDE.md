@@ -1,102 +1,183 @@
-# 🚀 Complete Setup Guide for New Users
+# 🚀 Complete Setup Guide for LinkedIn Post Bot
 
-This guide will walk you through setting up the LinkedIn Post Bot from scratch. Follow each step carefully.
+This guide walks you through setting up the LinkedIn Post Bot. Follow each step carefully to avoid errors.
 
-## 📋 Prerequisites
-
-- Python 3.10 or higher
-- A LinkedIn account
-- A GitHub account
-- Basic knowledge of terminal/command line
-
-## ⏱️ Estimated Setup Time: 30-45 minutes
+## ⏱️ Estimated Setup Time: 10-15 minutes
 
 ---
 
-## Step 1: Clone the Repository
+## 📋 What You'll Need
+
+| Requirement | Where to Get It | Cost |
+|-------------|-----------------|------|
+| LinkedIn Developer App | linkedin.com/developers | Free |
+| Groq API Key | console.groq.com | Free |
+| GitHub Account | github.com | Free |
+| Unsplash API Key (optional) | unsplash.com/developers | Free |
+
+---
+
+## Step 1: Start the Application
+
+### 1.1 Install Dependencies (First Time Only)
 
 ```bash
-git clone <your-repo-url>
-cd Linkedin-Post-Bot-App
-```
-
-## Step 2: Install Python Dependencies
-
-### Create Virtual Environment (Recommended)
-```bash
-# Windows
-python -m venv .venv
-.venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### Install Required Packages
-```bash
+# Backend
 pip install -r requirements.txt
+
+# Frontend
+cd web
+npm install
 ```
 
-Or install manually:
+### 1.2 Start the Servers
+
+Open **two terminal windows**:
+
+**Terminal 1 - Backend:**
 ```bash
-pip install requests python-dateutil groq python-dotenv
+cd backend
+python app.py
 ```
+Backend runs at: `http://localhost:8000`
+
+**Terminal 2 - Frontend:**
+```bash
+cd web
+npm run dev
+```
+Frontend runs at: `http://localhost:3000`
 
 ---
 
-## Step 3: Set Up LinkedIn OAuth (Required)
+## Step 2: Set Up LinkedIn Developer App
 
-### 3.1 Create a LinkedIn App
+### ⚠️ CRITICAL: Follow these steps exactly to avoid OAuth errors!
+
+### 2.1 Create the App
 
 1. Go to [LinkedIn Developers](https://www.linkedin.com/developers/apps)
 2. Click **"Create app"**
-3. Fill in the required information:
-   - **App name**: Your Bot Name (e.g., "My LinkedIn Post Bot")
-   - **LinkedIn Page**: Select or create a LinkedIn page
-   - **App logo**: Upload any image (optional)
-   - **Legal agreement**: Check the box
+3. Fill in:
+   - **App name**: "LinkedIn Post Bot" (or your choice)
+   - **LinkedIn Page**: Select your company page (create one if needed)
+   - **Privacy policy URL**: Any URL (can be your website)
+   - **App logo**: Any square image
 4. Click **"Create app"**
 
-### 3.2 Configure OAuth Settings
+### 2.2 Add Required Products ⚡
 
-1. In your app dashboard, go to the **"Auth"** tab
-2. Under **"OAuth 2.0 settings"**, add redirect URL:
+> **This step is ESSENTIAL - OAuth WILL FAIL without these products!**
+
+1. Go to the **"Products"** tab in your app
+2. Request access to BOTH:
+   - ✅ **"Sign In with LinkedIn using OpenID Connect"**
+   - ✅ **"Share on LinkedIn"**
+3. Wait for approval (usually instant)
+
+### 2.3 Configure Redirect URL
+
+1. Go to the **"Auth"** tab
+2. Under **"OAuth 2.0 settings"**, add this exact redirect URL:
    ```
-   http://localhost:8000/callback
+   http://localhost:8000/auth/linkedin/callback
    ```
 3. Click **"Update"**
-4. Under **"OAuth 2.0 scopes"**, request these permissions:
-   - ✅ `r_liteprofile` or `openid`
-   - ✅ `r_emailaddress` or `email`
-   - ✅ `w_member_social` (Required for posting)
-5. Click **"Update"**
 
-### 3.3 Get Your Credentials
+### 2.4 Verify Your Scopes
 
-From the **"Auth"** tab, copy:
-- **Client ID**
-- **Client Secret**
+In the **"Auth"** tab, verify these scopes are listed:
+- `openid`
+- `profile`
+- `email`
+- `w_member_social`
 
-### 3.4 Generate Access Token
+### 2.5 Get Your Credentials
 
-1. Run the authentication script:
-   ```bash
-   python auth.py
-   ```
+1. In the **"Auth"** tab, find **"Application credentials"**
+2. Copy your **Client ID**
+3. Click "Show" to reveal and copy your **Client Secret**
 
-2. Follow the prompts:
-   - Click the authorization URL
-   - Sign in to LinkedIn
-   - Authorize the app
-   - You'll see an error page - **this is normal!**
-   - Copy the **code** from the URL bar:
-     ```
-     http://localhost:8000/callback?code=AQT...&state=...
-     ```
-     Copy everything after `code=` and before `&state`
+---
 
-3. Paste the code when prompted
+## Step 3: Get Groq API Key
+
+1. Go to [console.groq.com](https://console.groq.com)
+2. Sign up (Google/GitHub login available)
+3. Navigate to **"API Keys"** in the sidebar
+4. Click **"Create API Key"**
+5. Copy the key (starts with `gsk_`)
+
+> ⚠️ Save it immediately - you can't see it again!
+
+---
+
+## Step 4: Configure the App
+
+1. Open the app at `http://localhost:3000`
+2. Go to **Settings** page
+3. Enter your **LinkedIn Client ID** and **Client Secret**
+4. Click **"Connect LinkedIn Account"**
+5. Authorize the app in the popup
+6. Enter your **Groq API Key**
+7. Enter your **GitHub Username**
+8. (Optional) Enter your **Unsplash Access Key**
+9. Click **"Save & Go to Dashboard"**
+
+---
+
+## 🎉 You're Done!
+
+Go to the Dashboard to start generating AI-powered LinkedIn posts from your GitHub activity!
+
+---
+
+## 🔧 Troubleshooting
+
+### "unauthorized_scope_error"
+**Cause**: Products not added to your LinkedIn app  
+**Fix**: Go to Products tab → Add "Sign In with LinkedIn using OpenID Connect" AND "Share on LinkedIn"
+
+### "401 Unauthorized"
+**Cause**: Invalid client secret  
+**Fix**: 
+1. Go to LinkedIn Developer Portal → Auth tab
+2. Click "Reset" next to Client Secret
+3. Copy the NEW secret and update in Settings
+
+### "403 Forbidden on /v2/me"
+**Cause**: Old API endpoint (now fixed in app)  
+**Fix**: Update to latest version of this app
+
+### LinkedIn Connect Button Doesn't Work
+**Cause**: Backend not running  
+**Fix**: Make sure `python app.py` is running in the backend folder
+
+### "Session expired" Errors
+**Cause**: Browser storage issue  
+**Fix**: Clear localStorage and reconnect LinkedIn
+
+---
+
+## 📁 Environment Variables (Advanced)
+
+For developers who prefer `.env` configuration:
+
+```env
+# Required
+GROQ_API_KEY=gsk_your_api_key
+GITHUB_USERNAME=your_username
+
+# LinkedIn OAuth
+LINKEDIN_CLIENT_ID=your_client_id
+LINKEDIN_CLIENT_SECRET=your_client_secret
+LINKEDIN_OAUTH_SCOPE=openid profile email w_member_social
+
+# Optional
+UNSPLASH_ACCESS_KEY=your_unsplash_key
+```
+
+Place this file in the **root directory** of the project (not in /backend).
 
 4. The script will output:
    - ✅ Access Token

@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import SEOHead from '@/components/SEOHead';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function Changelog() {
   const router = useRouter();

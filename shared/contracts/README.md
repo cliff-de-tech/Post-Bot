@@ -16,20 +16,15 @@ Run the generation script from the project root:
 npm run generate:types
 ```
 
-Or manually:
-
-```bash
-# Ensure backend is running
-curl http://localhost:8000/openapi.json > shared/contracts/openapi.json
-
-# Generate TypeScript types (requires openapi-typescript)
-npx openapi-typescript shared/contracts/openapi.json -o shared/contracts/api.ts
-```
+The script will:
+1. Fetch the OpenAPI spec from `http://localhost:8000/openapi.json`
+2. Generate TypeScript definitions using `openapi-typescript`
+3. Output to `shared/contracts/index.d.ts`
 
 ## Usage
 
 ```typescript
-import type { paths, components } from '@/shared/contracts/api';
+import type { paths, components } from '@/shared/contracts';
 
 // Use generated types
 type Post = components['schemas']['SavePostRequest'];
@@ -38,10 +33,11 @@ type GenerateResponse = paths['/api/post/generate-batch']['post']['responses']['
 
 ## Files
 
-| File | Description |
-|------|-------------|
-| `api.ts` | Generated TypeScript types (do not edit manually) |
-| `openapi.json` | Cached OpenAPI spec (auto-updated) |
-| `README.md` | This file |
+| File | Description | Committed |
+|------|-------------|-----------|
+| `index.d.ts` | Generated TypeScript types | ❌ No |
+| `openapi.json` | Cached OpenAPI spec | ❌ No |
+| `README.md` | This documentation | ✅ Yes |
 
-> ⚠️ Files in this directory (except README.md) are auto-generated. Do not edit manually.
+> ⚠️ Generated files are in `.gitignore`. Run `npm run generate:types` after cloning.
+

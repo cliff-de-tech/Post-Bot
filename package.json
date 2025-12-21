@@ -5,12 +5,13 @@
     "private": true,
     "scripts": {
         "dev": "cd web && npm run dev",
-        "build": "cd web && npm run build",
+        "build": "npm run generate:types && cd web && npm run build",
         "start": "cd web && npm run start",
         "lint": "cd web && npm run lint",
         "backend": "cd backend && python app.py",
-        "generate:types": "curl -s http://localhost:8000/openapi.json > shared/contracts/openapi.json && npx openapi-typescript shared/contracts/openapi.json -o shared/contracts/api.ts",
-        "postinstall": "echo 'Run npm run generate:types after starting backend to generate API types'"
+        "generate:types": "node scripts/generate-api-types.js",
+        "prebuild": "npm run generate:types",
+        "postinstall": "npm run generate:types || echo 'Type generation skipped (backend not running)'"
     },
     "repository": {
         "type": "git",

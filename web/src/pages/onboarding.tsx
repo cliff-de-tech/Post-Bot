@@ -1,14 +1,13 @@
 /**
- * Onboarding Page - Simplified Setup Flow
+ * Onboarding Page - Simple, Non-Technical Setup
  * 
- * SECURITY: This page does NOT accept credential input.
- * Users connect accounts via OAuth; API keys are managed server-side.
+ * SECURITY: No credential input fields. All secrets managed server-side.
  * 
  * Flow:
- * 1. Welcome
- * 2. Connect LinkedIn (OAuth)
- * 3. Set GitHub Username (public identifier only)
- * 4. Complete
+ * 1. Welcome - Simple intro
+ * 2. GitHub Username - Tell us who you are on GitHub (required)
+ * 3. Connect LinkedIn - One-click OAuth (required for posting)
+ * 4. All Done - Ready to create posts
  */
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -28,7 +27,7 @@ export default function Onboarding() {
 
   const userId = user?.id;
 
-  // Only public identifiers
+  // User inputs
   const [githubUsername, setGithubUsername] = useState('');
   const [linkedinConnected, setLinkedinConnected] = useState(false);
 
@@ -48,12 +47,12 @@ export default function Onboarding() {
     if (linkedinSuccess === 'true' && linkedinUrnParam) {
       localStorage.setItem('linkedin_user_urn', linkedinUrnParam);
       setLinkedinConnected(true);
-      showToast.success('LinkedIn connected successfully!');
+      showToast.success('LinkedIn connected! 🎉');
       window.history.replaceState({}, document.title, window.location.pathname);
-      setStep(3); // Move to GitHub step
+      setStep(4); // Move to completion step
     } else if (linkedinSuccess === 'false') {
-      const error = urlParams.get('error') || 'Unknown error';
-      showToast.error(`LinkedIn connection failed: ${error}`);
+      const error = urlParams.get('error') || 'Something went wrong';
+      showToast.error(`Couldn't connect LinkedIn: ${error}`);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -80,7 +79,7 @@ export default function Onboarding() {
           }
         }
       } catch (e) {
-        // No existing settings
+        // No existing settings, that's fine
       }
     };
     checkSettings();
@@ -88,7 +87,7 @@ export default function Onboarding() {
 
   const handleConnectLinkedIn = async () => {
     if (!userId) {
-      showToast.error('User not authenticated');
+      showToast.error('Please sign in first');
       return;
     }
 
@@ -97,12 +96,12 @@ export default function Onboarding() {
       await axios.get(`${API_BASE}/health`, { timeout: 2000 });
       showToast.dismiss(toastId);
 
-      // Redirect to OAuth (credentials managed server-side)
+      // Redirect to LinkedIn OAuth
       const redirectUri = `${window.location.origin}/onboarding`;
       window.location.href = `${API_BASE}/auth/linkedin/start?redirect_uri=${encodeURIComponent(redirectUri)}&user_id=${encodeURIComponent(userId)}`;
     } catch (error) {
       showToast.dismiss(toastId);
-      showToast.error('Backend server is unreachable. Please ensure the Python server is running.');
+      showToast.error('Server is starting up. Please try again in a moment.');
     }
   };
 
@@ -110,10 +109,9 @@ export default function Onboarding() {
     if (!userId) return;
 
     setLoading(true);
-    const toastId = showToast.loading('Saving your setup...');
+    const toastId = showToast.loading('Saving...');
 
     try {
-      // Only save public identifiers
       await axios.post(`${API_BASE}/api/settings`, {
         user_id: userId,
         github_username: githubUsername.trim(),
@@ -121,14 +119,14 @@ export default function Onboarding() {
       });
 
       showToast.dismiss(toastId);
-      showToast.success('Setup complete! Welcome aboard 🚀');
+      showToast.success("You're all set! Let's create some posts 🚀");
 
       setTimeout(() => {
         router.push('/dashboard');
       }, 1500);
     } catch (error: any) {
       showToast.dismiss(toastId);
-      showToast.error('Failed to save settings: ' + (error.response?.data?.error || error.message));
+      showToast.error('Something went wrong. Please try again.');
       setLoading(false);
     }
   };
@@ -147,13 +145,12 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300 overflow-hidden relative">
       <SEOHead
-        title="Setup - LinkedIn Post Bot"
-        description="Initialize your AI-powered LinkedIn assistant"
+        title="Get Started - PostBot"
+        description="Set up your AI-powered LinkedIn assistant in 2 minutes"
       />
 
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid.svg')] opacity-[0.05] dark:opacity-[0.02]"></div>
         <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-purple-500/20 rounded-full blur-3xl animate-blob"></div>
         <div className="absolute -bottom-[20%] -left-[10%] w-[70vw] h-[70vw] bg-blue-500/20 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
       </div>
@@ -173,192 +170,199 @@ export default function Onboarding() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-4xl mx-auto px-6 py-16 flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
+      <main className="relative z-10 max-w-2xl mx-auto px-6 py-16 flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
 
-        {/* Progress */}
-        <div className="flex items-center gap-4 mb-16">
+        {/* Progress - Simple dots */}
+        <div className="flex items-center gap-3 mb-12">
           {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center">
               <div className={`
-                w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-500
-                ${step === s ? 'bg-blue-600 text-white shadow-lg ring-4 ring-blue-500/20 scale-110' :
-                  step > s ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-white/5 text-gray-500'}
-              `}>
-                {step > s ? '✓' : s}
-              </div>
+                w-3 h-3 rounded-full transition-all duration-300
+                ${step >= s ? 'bg-blue-600 scale-100' : 'bg-gray-300 dark:bg-white/20 scale-75'}
+              `}></div>
               {s < 4 && (
-                <div className={`w-12 h-1 mx-3 rounded-full transition-all duration-500 ${step > s ? 'bg-green-500' : 'bg-gray-200 dark:bg-white/5'}`} />
+                <div className={`w-8 h-0.5 mx-1 transition-all duration-300 ${step > s ? 'bg-blue-600' : 'bg-gray-300 dark:bg-white/20'}`} />
               )}
             </div>
           ))}
         </div>
 
         {/* Card */}
-        <div className="w-full bg-white/80 dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden min-h-[500px] flex flex-col">
+        <div className="w-full bg-white/90 dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden">
 
           {/* Step 1: Welcome */}
-          <div className={`flex-1 p-10 flex flex-col transition-opacity duration-500 ${step === 1 ? 'opacity-100' : 'hidden opacity-0'}`}>
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-8">
-              <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-xl animate-float">
-                <span className="text-4xl">🚀</span>
+          {step === 1 && (
+            <div className="p-8 md:p-12 text-center">
+              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-tr from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-xl animate-float">
+                <span className="text-3xl">👋</span>
               </div>
-              <div>
-                <h1 className="text-4xl font-extrabold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-4">
-                  Welcome to PostBot
-                </h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
-                  Connect your accounts to start generating AI-powered LinkedIn content from your development activity.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5">
-                  <div className="font-semibold mb-1 text-gray-900 dark:text-white">🔗 LinkedIn</div>
-                  <div className="text-sm text-gray-500">Post directly</div>
-                </div>
-                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5">
-                  <div className="font-semibold mb-1 text-gray-900 dark:text-white">🐙 GitHub</div>
-                  <div className="text-sm text-gray-500">Track commits</div>
-                </div>
-              </div>
-
-              <button
-                onClick={nextStep}
-                className="w-full max-w-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
-              >
-                Start Setup
-              </button>
-            </div>
-          </div>
-
-          {/* Step 2: Connect LinkedIn */}
-          <div className={`flex-1 p-10 flex flex-col transition-opacity duration-500 ${step === 2 ? 'opacity-100' : 'hidden opacity-0'}`}>
-            <h2 className="text-2xl font-bold mb-2">Connect LinkedIn</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">Required for posting to your LinkedIn profile.</p>
-
-            {linkedinConnected ? (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30 rounded-2xl p-6 flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-green-600 dark:text-green-400 font-semibold">LinkedIn Connected!</p>
-                  <p className="text-green-500/70 text-sm">Your account is ready for posting</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col justify-center">
-                <button
-                  onClick={handleConnectLinkedIn}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-                  </svg>
-                  Connect LinkedIn Account
-                </button>
-                <p className="text-center text-gray-500 text-sm mt-4">
-                  You'll be redirected to LinkedIn to authorize access
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-4 pt-6 mt-auto border-t border-gray-200 dark:border-white/10">
-              <button onClick={prevStep} className="px-6 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium transition-colors">
-                Back
-              </button>
-              <button
-                onClick={nextStep}
-                disabled={!linkedinConnected}
-                className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all py-3"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-
-          {/* Step 3: GitHub Username */}
-          <div className={`flex-1 p-10 flex flex-col transition-opacity duration-500 ${step === 3 ? 'opacity-100' : 'hidden opacity-0'}`}>
-            <h2 className="text-2xl font-bold mb-2">Set GitHub Username</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">We'll track your public activity to generate posts.</p>
-
-            <div className="flex-1 space-y-4">
-              <div className="relative">
-                <span className="absolute left-4 top-3.5 text-gray-400 font-mono">github.com/</span>
-                <input
-                  type="text"
-                  value={githubUsername}
-                  onChange={(e) => setGithubUsername(e.target.value)}
-                  placeholder="your-username"
-                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl pl-28 pr-4 py-3 focus:ring-2 focus:ring-green-500 outline-none transition-all font-mono"
-                />
-              </div>
-              <p className="text-sm text-gray-500">
-                This is your public GitHub username. We'll use it to fetch your activity for AI-generated posts.
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                Welcome to PostBot!
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+                Turn your GitHub activity into engaging LinkedIn posts. Setup takes about 2 minutes.
               </p>
-            </div>
 
-            <div className="flex gap-4 pt-6 mt-auto border-t border-gray-200 dark:border-white/10">
-              <button onClick={prevStep} className="px-6 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium transition-colors">
-                Back
-              </button>
               <button
                 onClick={nextStep}
-                disabled={!githubUsername.trim()}
-                className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all py-3"
+                className="w-full max-w-xs mx-auto bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
               >
-                Continue
+                Let's Go →
               </button>
             </div>
-          </div>
+          )}
 
-          {/* Step 4: Complete */}
-          <div className={`flex-1 p-10 flex flex-col transition-opacity duration-500 ${step === 4 ? 'opacity-100' : 'hidden opacity-0'}`}>
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-8">
-              <div className="w-24 h-24 bg-gradient-to-tr from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-xl">
-                <span className="text-4xl">✨</span>
+          {/* Step 2: GitHub Username */}
+          {step === 2 && (
+            <div className="p-8 md:p-12">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">🐙</span>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Your GitHub</h2>
               </div>
-              <div>
-                <h1 className="text-4xl font-extrabold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-4">
-                  You're all set!
-                </h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
-                  Your accounts are connected. Click below to start generating posts.
+              <p className="text-gray-500 dark:text-gray-400 mb-8">
+                We'll use your public activity to help write posts about your coding projects.
+              </p>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  GitHub Username
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-3.5 text-gray-400">github.com/</span>
+                  <input
+                    type="text"
+                    value={githubUsername}
+                    onChange={(e) => setGithubUsername(e.target.value)}
+                    placeholder="your-username"
+                    className="w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl pl-28 pr-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    autoFocus
+                  />
+                </div>
+                <p className="mt-2 text-sm text-gray-500">
+                  Just your username — we only look at your public activity.
                 </p>
               </div>
 
-              <div className="w-full max-w-md space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-500/30">
-                  <span className="text-green-600 dark:text-green-400 font-medium">LinkedIn Connected</span>
-                  <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/20 rounded-xl border border-gray-200 dark:border-gray-500/30">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">GitHub: {githubUsername}</span>
-                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                </div>
+              <div className="flex gap-3 pt-6 border-t border-gray-100 dark:border-white/5">
+                <button
+                  onClick={prevStep}
+                  className="px-5 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={nextStep}
+                  disabled={!githubUsername.trim()}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all py-3"
+                >
+                  Continue
+                </button>
               </div>
             </div>
+          )}
 
-            <div className="flex gap-4 pt-6 mt-8 border-t border-gray-200 dark:border-white/10">
-              <button onClick={prevStep} className="px-6 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium transition-colors">
-                Back
-              </button>
+          {/* Step 3: Connect LinkedIn */}
+          {step === 3 && (
+            <div className="p-8 md:p-12">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">🔗</span>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Connect LinkedIn</h2>
+              </div>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">
+                This lets PostBot publish posts to your LinkedIn profile.
+              </p>
+
+              {linkedinConnected ? (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30 rounded-2xl p-6 flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-green-700 dark:text-green-400 font-semibold">LinkedIn Connected!</p>
+                    <p className="text-green-600/70 text-sm">Ready to post</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-6">
+                  <button
+                    onClick={handleConnectLinkedIn}
+                    className="w-full bg-[#0A66C2] hover:bg-[#004182] text-white py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                    </svg>
+                    Connect with LinkedIn
+                  </button>
+                  <p className="text-center text-gray-500 text-sm mt-3">
+                    You'll be taken to LinkedIn to securely authorize access.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-6 border-t border-gray-100 dark:border-white/5">
+                <button
+                  onClick={prevStep}
+                  className="px-5 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={nextStep}
+                  disabled={!linkedinConnected}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all py-3"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: All Done */}
+          {step === 4 && (
+            <div className="p-8 md:p-12 text-center">
+              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-tr from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-xl">
+                <span className="text-3xl">🎉</span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                You're All Set!
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+                PostBot will now help you share your coding journey on LinkedIn.
+              </p>
+
+              {/* Summary */}
+              <div className="max-w-sm mx-auto space-y-3 mb-8">
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
+                  <span className="text-gray-700 dark:text-gray-300">GitHub</span>
+                  <span className="text-gray-900 dark:text-white font-medium">@{githubUsername}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                  <span className="text-green-700 dark:text-green-400">LinkedIn</span>
+                  <span className="text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    Connected
+                  </span>
+                </div>
+              </div>
+
               <button
                 onClick={handleComplete}
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all py-3 flex items-center justify-center gap-2"
+                className="w-full max-w-xs mx-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
-                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Finishing Up...
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    Finishing...
                   </>
-                ) : 'Complete Setup & Go to Dashboard ✨'}
+                ) : (
+                  'Go to Dashboard →'
+                )}
               </button>
             </div>
-          </div>
+          )}
 
         </div>
       </main>
@@ -374,14 +378,14 @@ export default function Onboarding() {
           animation: blob 10s infinite;
         }
         .animation-delay-4000 {
-           animation-delay: 4s;
+          animation-delay: 4s;
         }
         .animate-float {
           animation: float 6s ease-in-out infinite;
         }
         @keyframes float {
           0% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
+          50% { transform: translateY(-15px); }
           100% { transform: translateY(0px); }
         }
       `}</style>

@@ -535,6 +535,43 @@ cd web && npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to access the dashboard.
 
+### User Onboarding Flow
+
+New users go through a simple 4-step setup:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ONBOARDING FLOW                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Step 1: Welcome                                                │
+│  ─────────────────                                              │
+│  Brief intro to PostBot, ~2 minute setup                        │
+│                                                                  │
+│  Step 2: GitHub Username                                        │
+│  ─────────────────────────                                      │
+│  Enter public GitHub username (e.g., "cliff-de-tech")           │
+│  Used to fetch public activity for post content                 │
+│                                                                  │
+│  Step 3: Connect LinkedIn                                       │
+│  ────────────────────────                                       │
+│  One-click OAuth connection                                     │
+│  User is redirected to LinkedIn, then back                      │
+│  Token stored encrypted in backend                              │
+│                                                                  │
+│  Step 4: All Done                                               │
+│  ─────────────────                                              │
+│  Summary confirmation, redirect to dashboard                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**What's NOT collected:**
+- ❌ LinkedIn API secrets (server-managed)
+- ❌ Groq API keys (server-managed)
+- ❌ Unsplash keys (server-managed)
+- ❌ Any technical credentials
+
 ### API Documentation
 
 The FastAPI backend provides OpenAPI documentation at stable URLs:

@@ -406,7 +406,161 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
         return {"error": str(e), "status": "failed"}
 
 
-# User settings endpoints
+# GitHub OAuth configuration
+GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
+GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
+
+
+@app.get('/auth/github/start')
+def github_oauth_start(redirect_uri: str, user_id: str):
+    """
+    Start GitHub OAuth flow.
+    
+    Redirects user to GitHub's authorization page.
+    Requested scopes: read:user, repo (for private repo access)
+    
+    Args:
+        redirect_uri: Where to redirect after auth
+        user_id: Clerk user ID (stored in state for callback)
+    """
+    if not GITHUB_CLIENT_ID:
+        return {"error": "GitHub OAuth not configured"}
+    
+    state = f"{user_id}:{uuid4().hex}"
+    
+    # Request read:user and repo scope for private activity access
+    scopes = "read:user,repo"
+    
+    auth_url = (
+        f"https://github.com/login/oauth/authorize"
+        f"?client_id={GITHUB_CLIENT_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scopes}"
+        f"&state={state}"
+    )
+    
+    return RedirectResponse(auth_url)
+
+
+@app.get('/auth/github/callback')
+def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str = None):
+    """
+    Handle GitHub OAuth callback.
+    
+    Exchanges authorization code for access token and stores it encrypted.
+    
+    Returns redirect with success/failure status.
+    """
+    if not code:
+        return {"error": "missing code", "status": "failed"}
+    
+    # Extract user_id from state
+    user_id = None
+    if state and ':' in state:
+        parts = state.split(':', 1)
+        user_id = parts[0]
+    
+    if not user_id:
+        return {"error": "missing user_id in state", "status": "failed"}
+    
+    try:
+        import requests
+        
+        # Exchange code for access token
+        token_response = requests.post(
+            'https://github.com/login/oauth/access_token',
+            data={
+                'client_id': GITHUB_CLIENT_ID,
+                'client_secret': GITHUB_CLIENT_SECRET,
+                'code': code,
+            },
+            headers={'Accept': 'application/json'},
+            timeout=10
+        )
+        
+        token_data = token_response.json()
+        
+        if 'error' in token_data:
+            return {"error": token_data.get('error_description', 'OAuth failed'), "status": "failed"}
+        
+        access_token = token_data.get('access_token')
+        
+        if not access_token:
+            return {"error": "No access token received", "status": "failed"}
+        
+        # Get GitHub username from API
+        user_response = requests.get(
+            'https://api.github.com/user',
+            headers={
+                'Authorization': f'Bearer {access_token}',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            timeout=10
+        )
+        
+        github_user = user_response.json()
+        github_username = github_user.get('login', '')
+        
+        # Store the token encrypted
+        from services.token_store import save_github_token
+        save_github_token(user_id, github_username, access_token)
+        
+        # Also update user settings with username
+        if save_user_settings and get_user_settings:
+            settings = get_user_settings(user_id) or {}
+            settings['github_username'] = github_username
+            save_user_settings(user_id, settings)
+        
+        return {
+            "status": "success", 
+            "github_username": github_username,
+            "github_connected": True
+        }
+    except Exception as e:
+        import traceback
+        print(f"GitHub OAuth Error: {e}")
+        print(traceback.format_exc())
+        return {"error": str(e), "status": "failed"}
+
+
+@app.post("/api/disconnect-github")
+def disconnect_github(request: DisconnectRequest):
+    """
+    Disconnect a user's GitHub OAuth token.
+    
+    Removes the stored GitHub PAT while keeping the username.
+    
+    SECURITY:
+        - User can only disconnect their own account
+        - Only removes GitHub token, not LinkedIn
+    """
+    try:
+        from services.token_store import get_conn, init_db
+        
+        init_db()
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        # Clear only the GitHub token, keep the rest
+        cur.execute('''
+            UPDATE accounts 
+            SET github_access_token = NULL 
+            WHERE user_id = ?
+        ''', (request.user_id,))
+        
+        updated = cur.rowcount > 0
+        conn.commit()
+        conn.close()
+        
+        if updated:
+            return {"success": True, "message": "GitHub disconnected"}
+        else:
+            return {"success": False, "message": "No GitHub connection found"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
 # SECURITY: Only safe fields are accepted from frontend
 class UserSettingsRequest(BaseModel):
     user_id: str
@@ -484,31 +638,47 @@ def get_connection_status_endpoint(user_id: str):
     
     SECURITY: Returns ONLY boolean status and public identifiers.
     No tokens or credentials are ever returned.
+    
+    Returns:
+        - linkedin_connected: Has LinkedIn OAuth token
+        - github_connected: Has GitHub username
+        - github_oauth_connected: Has GitHub OAuth token (for private repos)
     """
     try:
         # Import get_connection_status from token_store
-        from services.token_store import get_connection_status
+        from services.token_store import get_connection_status, get_token_by_user_id
         
         status = get_connection_status(user_id)
         
-        # Also get github_username from settings
+        # Get github_username from settings
         github_username = ''
         if get_user_settings:
             settings = get_user_settings(user_id)
             if settings:
                 github_username = settings.get('github_username', '')
         
+        # Check if user has GitHub OAuth token (for private repos)
+        github_oauth_connected = False
+        try:
+            token_data = get_token_by_user_id(user_id)
+            if token_data and token_data.get('github_access_token'):
+                github_oauth_connected = True
+        except:
+            pass
+        
         return {
             "linkedin_connected": status.get("linkedin_connected", False),
             "linkedin_urn": status.get("linkedin_urn", ""),
             "github_connected": bool(github_username),
             "github_username": github_username,
+            "github_oauth_connected": github_oauth_connected,
             "token_expires_at": status.get("token_expires_at"),
         }
     except Exception as e:
         return {
             "linkedin_connected": False,
             "github_connected": False,
+            "github_oauth_connected": False,
             "error": str(e)
         }
 

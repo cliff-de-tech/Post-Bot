@@ -6,6 +6,7 @@
  * Flow:
  * 1. Welcome - Simple intro
  * 2. GitHub Username - Tell us who you are on GitHub (required)
+ *    + Optional: Connect GitHub OAuth for private repos
  * 3. Connect LinkedIn - One-click OAuth (required for posting)
  * 4. All Done - Ready to create posts
  */
@@ -30,6 +31,7 @@ export default function Onboarding() {
   // User inputs
   const [githubUsername, setGithubUsername] = useState('');
   const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [githubOAuthConnected, setGithubOAuthConnected] = useState(false);
 
   // Redirect if not signed in
   useEffect(() => {
@@ -38,9 +40,11 @@ export default function Onboarding() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  // Check for LinkedIn OAuth callback
+  // Check for OAuth callbacks
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+
+    // LinkedIn OAuth callback
     const linkedinSuccess = urlParams.get('linkedin_success');
     const linkedinUrnParam = urlParams.get('linkedin_urn');
 
@@ -56,7 +60,18 @@ export default function Onboarding() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // Check if already connected
+    // GitHub OAuth callback
+    const githubSuccess = urlParams.get('github_success');
+    if (githubSuccess === 'true') {
+      setGithubOAuthConnected(true);
+      showToast.success('GitHub connected! Private repos now accessible.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (githubSuccess === 'false') {
+      showToast.error('GitHub connection cancelled or failed');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Check if already connected from localStorage
     const storedUrn = localStorage.getItem('linkedin_user_urn');
     if (storedUrn) {
       setLinkedinConnected(true);
@@ -76,6 +91,9 @@ export default function Onboarding() {
           }
           if (response.data.linkedin_connected) {
             setLinkedinConnected(true);
+          }
+          if (response.data.github_oauth_connected) {
+            setGithubOAuthConnected(true);
           }
         }
       } catch (e) {
@@ -99,6 +117,29 @@ export default function Onboarding() {
       // Redirect to LinkedIn OAuth
       const redirectUri = `${window.location.origin}/onboarding`;
       window.location.href = `${API_BASE}/auth/linkedin/start?redirect_uri=${encodeURIComponent(redirectUri)}&user_id=${encodeURIComponent(userId)}`;
+    } catch (error) {
+      showToast.dismiss(toastId);
+      showToast.error('Server is starting up. Please try again in a moment.');
+    }
+  };
+
+  const handleConnectGitHub = async () => {
+    if (!userId) {
+      showToast.error('Please sign in first');
+      return;
+    }
+
+    const toastId = showToast.loading('Connecting to GitHub...');
+    try {
+      await axios.get(`${API_BASE}/health`, { timeout: 2000 });
+      showToast.dismiss(toastId);
+
+      // Mark that we're coming from onboarding for the callback page
+      localStorage.setItem('github_oauth_from_onboarding', 'true');
+
+      // Redirect to GitHub OAuth
+      const redirectUri = `${window.location.origin}/auth/github/callback`;
+      window.location.href = `${API_BASE}/auth/github/start?redirect_uri=${encodeURIComponent(redirectUri)}&user_id=${encodeURIComponent(userId)}`;
     } catch (error) {
       showToast.dismiss(toastId);
       showToast.error('Server is starting up. Please try again in a moment.');
@@ -212,20 +253,21 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 2: GitHub Username */}
+          {/* Step 2: GitHub Username + Optional OAuth */}
           {step === 2 && (
             <div className="p-8 md:p-12">
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-2xl">🐙</span>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Your GitHub</h2>
               </div>
-              <p className="text-gray-500 dark:text-gray-400 mb-8">
-                We'll use your public activity to help write posts about your coding projects.
+              <p className="text-gray-500 dark:text-gray-400 mb-6">
+                We'll use your activity to help write posts about your coding projects.
               </p>
 
+              {/* Username Input */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  GitHub Username
+                  GitHub Username <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-3.5 text-gray-400">github.com/</span>
@@ -239,8 +281,45 @@ export default function Onboarding() {
                   />
                 </div>
                 <p className="mt-2 text-sm text-gray-500">
-                  Just your username — we only look at your public activity.
+                  This is your public username — we use it to fetch your public activity.
                 </p>
+              </div>
+
+              {/* Optional OAuth Section */}
+              <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white text-sm">🔓 Private Repository Access</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Optional: Include commits from private repos
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${githubOAuthConnected
+                      ? 'bg-green-500/20 text-green-500'
+                      : 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400'
+                    }`}>
+                    {githubOAuthConnected ? '✓ Connected' : 'Optional'}
+                  </span>
+                </div>
+
+                {githubOAuthConnected ? (
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Private repos will be included
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConnectGitHub}
+                    className="w-full bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                    </svg>
+                    Connect GitHub (Optional)
+                  </button>
+                )}
               </div>
 
               <div className="flex gap-3 pt-6 border-t border-gray-100 dark:border-white/5">
@@ -336,7 +415,12 @@ export default function Onboarding() {
               <div className="max-w-sm mx-auto space-y-3 mb-8">
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
                   <span className="text-gray-700 dark:text-gray-300">GitHub</span>
-                  <span className="text-gray-900 dark:text-white font-medium">@{githubUsername}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-900 dark:text-white font-medium">@{githubUsername}</span>
+                    {githubOAuthConnected && (
+                      <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">+private</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
                   <span className="text-green-700 dark:text-green-400">LinkedIn</span>

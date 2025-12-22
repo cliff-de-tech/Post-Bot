@@ -23,6 +23,7 @@ interface ConnectionStatus {
   linkedin_urn?: string;
   github_connected: boolean;
   github_username?: string;
+  github_oauth_connected: boolean;
   token_expires_at?: number;
 }
 
@@ -35,7 +36,8 @@ export default function Settings() {
   // Connection status state
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     linkedin_connected: false,
-    github_connected: false
+    github_connected: false,
+    github_oauth_connected: false
   });
 
   // GitHub username for display/edit (only public identifier)
@@ -51,10 +53,34 @@ export default function Settings() {
     }
   }, [isLoaded, isSignedIn, router]);
 
+  // Handle OAuth callbacks
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Handle GitHub OAuth callback
+    const githubSuccess = urlParams.get('github_success');
+    if (githubSuccess === 'true') {
+      showToast.success('GitHub connected! Private repos now accessible.');
+      loadConnectionStatus();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (githubSuccess === 'false') {
+      const error = urlParams.get('error') || 'Unknown error';
+      showToast.error(`GitHub connection failed: ${error}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Handle LinkedIn OAuth callback
+    const linkedinSuccess = urlParams.get('linkedin_success');
+    if (linkedinSuccess === 'true') {
+      showToast.success('LinkedIn connected!');
+      loadConnectionStatus();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Load connection status
   useEffect(() => {
     if (!isLoaded || !userId) return;
-
     setMounted(true);
     loadConnectionStatus();
   }, [isLoaded, userId]);
@@ -62,7 +88,6 @@ export default function Settings() {
   const loadConnectionStatus = async () => {
     setLoading(true);
     try {
-      // Get connection status from token_store
       const response = await axios.get(`${API_BASE}/api/connection-status/${userId}`);
       if (response.data && !response.data.error) {
         setConnectionStatus({
@@ -70,6 +95,7 @@ export default function Settings() {
           linkedin_urn: response.data.linkedin_urn || '',
           github_connected: response.data.github_connected || false,
           github_username: response.data.github_username || '',
+          github_oauth_connected: response.data.github_oauth_connected || false,
           token_expires_at: response.data.token_expires_at
         });
         setGithubUsername(response.data.github_username || '');
@@ -81,6 +107,7 @@ export default function Settings() {
     }
   };
 
+  // LinkedIn OAuth
   const handleConnectLinkedIn = async () => {
     if (!userId) {
       showToast.error('User not authenticated');
@@ -89,16 +116,13 @@ export default function Settings() {
 
     const toastId = showToast.loading('Connecting to LinkedIn...');
     try {
-      // Check if backend is reachable
       await axios.get(`${API_BASE}/health`, { timeout: 2000 });
       showToast.dismiss(toastId);
-
-      // Redirect to OAuth (credentials are managed server-side)
-      const redirectUri = `${window.location.origin}/auth/callback`;
+      const redirectUri = `${window.location.origin}/settings?linkedin_success=true`;
       window.location.href = `${API_BASE}/auth/linkedin/start?redirect_uri=${encodeURIComponent(redirectUri)}&user_id=${encodeURIComponent(userId)}`;
     } catch (error) {
       showToast.dismiss(toastId);
-      showToast.error('Backend server is unreachable. Please ensure the Python server is running.');
+      showToast.error('Backend server is unreachable.');
     }
   };
 
@@ -113,6 +137,36 @@ export default function Settings() {
     }
   };
 
+  // GitHub OAuth
+  const handleConnectGitHub = async () => {
+    if (!userId) {
+      showToast.error('User not authenticated');
+      return;
+    }
+
+    const toastId = showToast.loading('Connecting to GitHub...');
+    try {
+      await axios.get(`${API_BASE}/health`, { timeout: 2000 });
+      showToast.dismiss(toastId);
+      const redirectUri = `${window.location.origin}/auth/github/callback`;
+      window.location.href = `${API_BASE}/auth/github/start?redirect_uri=${encodeURIComponent(redirectUri)}&user_id=${encodeURIComponent(userId)}`;
+    } catch (error) {
+      showToast.dismiss(toastId);
+      showToast.error('Backend server is unreachable.');
+    }
+  };
+
+  const handleDisconnectGitHub = async () => {
+    try {
+      await axios.post(`${API_BASE}/api/disconnect-github`, { user_id: userId });
+      setConnectionStatus(prev => ({ ...prev, github_oauth_connected: false }));
+      showToast.success('GitHub OAuth disconnected');
+    } catch (error) {
+      showToast.error('Failed to disconnect GitHub');
+    }
+  };
+
+  // Save GitHub username
   const handleSaveGithubUsername = async () => {
     if (!userId || !githubUsername.trim()) return;
 
@@ -145,11 +199,19 @@ export default function Settings() {
     });
   };
 
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-bg-primary text-text-primary transition-colors duration-300">
-      <SEOHead title="Settings - LinkedIn Post Bot" description="Manage your connections" />
+      <SEOHead title="Settings - PostBot" description="Manage your connections" />
 
-      {/* Animated background */}
+      {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
@@ -207,8 +269,8 @@ export default function Settings() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Required for posting</p>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-sm font-medium ${connectionStatus.linkedin_connected
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-gray-500/20 text-gray-400'
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-gray-500/20 text-gray-400'
                   }`}>
                   {connectionStatus.linkedin_connected ? '✓ Connected' : 'Not Connected'}
                 </div>
@@ -259,36 +321,87 @@ export default function Settings() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">For activity tracking</p>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-sm font-medium ${connectionStatus.github_connected
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-gray-500/20 text-gray-400'
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-gray-500/20 text-gray-400'
                   }`}>
                   {connectionStatus.github_connected ? '✓ Connected' : 'Not Set'}
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <span className="absolute left-3 top-3 text-gray-400 text-sm">github.com/</span>
-                    <input
-                      type="text"
-                      value={githubUsername}
-                      onChange={(e) => setGithubUsername(e.target.value)}
-                      placeholder="username"
-                      className="w-full pl-24 pr-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    />
+              {/* Username Section */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    GitHub Username (Public Activity)
+                  </label>
+                  <div className="flex gap-3">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-3 top-3 text-gray-400 text-sm">github.com/</span>
+                      <input
+                        type="text"
+                        value={githubUsername}
+                        onChange={(e) => setGithubUsername(e.target.value)}
+                        placeholder="username"
+                        className="w-full pl-24 pr-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSaveGithubUsername}
+                      disabled={savingGithub || !githubUsername.trim()}
+                      className="px-6 py-3 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all"
+                    >
+                      {savingGithub ? 'Saving...' : 'Save'}
+                    </button>
                   </div>
-                  <button
-                    onClick={handleSaveGithubUsername}
-                    disabled={savingGithub || !githubUsername.trim()}
-                    className="px-6 py-3 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all"
-                  >
-                    {savingGithub ? 'Saving...' : 'Save'}
-                  </button>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    We use your public activity (commits, PRs) to generate post content.
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Your public GitHub username is used to fetch your activity for post generation.
-                </p>
+
+                {/* OAuth Section */}
+                <div className="pt-4 border-t border-gray-200 dark:border-white/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Private Repository Access</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Connect GitHub to include private repo activity
+                      </p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${connectionStatus.github_oauth_connected
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-gray-500/20 text-gray-400'
+                      }`}>
+                      {connectionStatus.github_oauth_connected ? '✓ OAuth Connected' : 'Optional'}
+                    </div>
+                  </div>
+
+                  {connectionStatus.github_oauth_connected ? (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-green-600 dark:text-green-400 font-medium">GitHub OAuth Connected</p>
+                          <p className="text-green-500/70 text-sm">Private repos are now included</p>
+                        </div>
+                        <button
+                          onClick={handleDisconnectGitHub}
+                          className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
+                        >
+                          Disconnect
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleConnectGitHub}
+                      className="w-full bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                      </svg>
+                      Connect GitHub for Private Repos
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -312,7 +425,7 @@ export default function Settings() {
         )}
       </main>
 
-      <style jsx>{`
+      <style jsx global>{`
         @keyframes blob {
           0% { transform: translate(0px, 0px) scale(1); }
           33% { transform: translate(30px, -50px) scale(1.1); }
@@ -320,7 +433,7 @@ export default function Settings() {
           100% { transform: translate(0px, 0px) scale(1); }
         }
         .animate-blob {
-          animation: blob 7s infinite;
+          animation: blob 10s infinite;
         }
         .animation-delay-2000 {
           animation-delay: 2s;

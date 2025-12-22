@@ -596,7 +596,73 @@ The settings page (`/settings`) shows connection status only—no credential inp
 | `/api/connection-status/{user_id}` | GET | Returns boolean connection states only |
 | `/api/disconnect-linkedin` | POST | Deletes stored OAuth token |
 
-### API Documentation
+### Data Isolation & Accuracy Guarantees
+
+PostBot ensures each user's data is **strictly isolated** and posts are generated from **their own activity only**.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DATA FLOW ISOLATION                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  User A                                User B                        │
+│    │                                     │                          │
+│    ▼                                     ▼                          │
+│  ┌─────────────┐                    ┌─────────────┐                 │
+│  │ GitHub A    │                    │ GitHub B    │                 │
+│  │ username +  │                    │ username +  │                 │
+│  │ token       │                    │ token       │                 │
+│  └──────┬──────┘                    └──────┬──────┘                 │
+│         │                                  │                        │
+│         ▼                                  ▼                        │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                 SHARED INFRASTRUCTURE                        │   │
+│  │  ┌─────────────────────────────────────────────────────────┐│   │
+│  │  │ AI Service (App-level Groq key)                         ││   │
+│  │  │ Receives: User-specific activity data ONLY              ││   │
+│  │  │ Never sees: Other users' data                           ││   │
+│  │  └─────────────────────────────────────────────────────────┘│   │
+│  │  ┌─────────────────────────────────────────────────────────┐│   │
+│  │  │ Image Service (App-level Unsplash key)                  ││   │
+│  │  │ Driven by: Post content context                         ││   │
+│  │  │ No user secrets: Query based on post text only          ││   │
+│  │  └─────────────────────────────────────────────────────────┘│   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│         │                                  │                        │
+│         ▼                                  ▼                        │
+│  ┌─────────────┐                    ┌─────────────┐                 │
+│  │ LinkedIn A  │                    │ LinkedIn B  │                 │
+│  │ OAuth token │                    │ OAuth token │                 │
+│  └─────────────┘                    └─────────────┘                 │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**GitHub Activity:**
+| Scope | How It's Enforced |
+|-------|-------------------|
+| Username | Passed per-request, never shared |
+| Token (if OAuth) | Retrieved from `token_store` by `user_id` |
+| API Calls | Scoped to that user's repos/events only |
+
+**AI Generation:**
+| Aspect | Implementation |
+|--------|----------------|
+| API Key | App-level `GROQ_API_KEY` (or user-provided) |
+| Input Data | User-specific activity data only |
+| Context | Never sees other users' activities |
+
+**Unsplash Images:**
+| Aspect | Implementation |
+|--------|----------------|
+| API Key | App-level `UNSPLASH_ACCESS_KEY` |
+| Query | Derived from post content keywords |
+| User Secrets | Not used – purely content-driven |
+
+**Why This Matters:**
+1. ✅ **No cross-user data leakage** – Each API call includes only that user's identifiers
+2. ✅ **Posts are authentic** – Generated from real user activity, not synthetic data
+3. ✅ **Shared services are stateless** – AI and image services don't retain user context
 
 The FastAPI backend provides OpenAPI documentation at stable URLs:
 

@@ -94,7 +94,9 @@ This project prioritizes **safety and compliance**:
 
 ## Credential & Security Model
 
-This project implements a secure multi-tenant architecture with encryption at rest.
+This project implements a **secure multi-tenant architecture** with encryption at rest.
+
+> ⚠️ **Security Guarantee**: Secrets NEVER reach the frontend. All API keys, tokens, and credentials are managed exclusively server-side.
 
 ### (A) App-Level Secrets (ENV-ONLY)
 
@@ -133,47 +135,191 @@ User settings in `user_settings.db` contain **preferences only**, no secrets.
 | `onboarding_complete` | Boolean | Setup status |
 | `subscription_tier` | Text | free/pro/enterprise |
 
-### Multi-Tenant Isolation
+---
+
+### Multi-Tenant Isolation Model
+
+Every user's data is strictly isolated using Clerk user IDs as tenant keys:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    TENANT ISOLATION                          │
 ├─────────────────────────────────────────────────────────────┤
 │  1. Every DB query filters by user_id (Clerk ID)            │
-│  2. get_token_by_user_id() is the primary retrieval method  │
-│  3. Tokens are encrypted per-user with shared ENCRYPTION_KEY│
-│  4. Frontend receives connection STATUS only, never tokens  │
+│  2. get_token_by_user_id() is the ONLY retrieval method     │
+│  3. Tokens encrypted with shared ENCRYPTION_KEY             │
+│  4. User A cannot access User B's tokens/settings           │
 │  5. Parameterized queries prevent SQL injection             │
+│  6. Frontend receives connection STATUS only, never tokens  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Encryption Implementation
+**Implementation Details:**
+- `services/token_store.py`: All queries include `WHERE user_id=?`
+- `services/user_settings.py`: Tenant-scoped preference storage
+- No admin endpoints expose cross-tenant data
 
-- **Algorithm**: Fernet (AES-128-CBC + HMAC-SHA256)
-- **Key**: 32-byte URL-safe base64, loaded from `ENCRYPTION_KEY` env var
-- **Auto-migration**: Plaintext tokens encrypted on first access
-- **Prefix**: Encrypted values start with `ENC:` for identification
+---
 
-Generate a key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+### Encryption at Rest Implementation
+
+**Algorithm**: Fernet (AES-128-CBC + HMAC-SHA256)
+
+```python
+# services/encryption.py
+from cryptography.fernet import Fernet
+
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')  # 32-byte URL-safe base64
+fernet = Fernet(ENCRYPTION_KEY.encode())
+
+# Encrypt: plaintext → "ENC:base64_ciphertext"
+# Decrypt: "ENC:base64_ciphertext" → plaintext
+```
+
+**Environment Behavior:**
+| Environment | `ENCRYPTION_KEY` Present | Behavior |
+|-------------|-------------------------|----------|
+| Production (`ENV=production`) | ✅ Yes | Encrypt/decrypt normally |
+| Production (`ENV=production`) | ❌ No | **Fail fast** with `EncryptionKeyMissingError` |
+| Development | ✅ Yes | Encrypt/decrypt normally |
+| Development | ❌ No | ⚠️ Warning logged, plaintext allowed |
+
+**Generate a key:**
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+---
+
+### Token Lifecycle
+
+Complete flow from storage to internal use:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        TOKEN LIFECYCLE                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  1. STORE (OAuth callback)                                          │
+│     ┌─────────────────────────────────────────────────────────────┐ │
+│     │ access_token = "abc123..."                                  │ │
+│     │       ↓                                                     │ │
+│     │ encrypt_value(access_token)                                 │ │
+│     │       ↓                                                     │ │
+│     │ "ENC:gAAAAABl..." (stored in SQLite)                        │ │
+│     └─────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+│  2. RETRIEVE (API request)                                          │
+│     ┌─────────────────────────────────────────────────────────────┐ │
+│     │ get_token_by_user_id(user_id)                               │ │
+│     │       ↓                                                     │ │
+│     │ "ENC:gAAAAABl..." (from SQLite)                             │ │
+│     │       ↓                                                     │ │
+│     │ decrypt_value(encrypted_token)                              │ │
+│     │       ↓                                                     │ │
+│     │ access_token = "abc123..." (in-memory only)                 │ │
+│     └─────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+│  3. USE (Internal only)                                             │
+│     ┌─────────────────────────────────────────────────────────────┐ │
+│     │ linkedin_service.post(access_token)  ← Server-side only    │ │
+│     │ github_service.fetch(github_pat)     ← Server-side only    │ │
+│     │                                                             │ │
+│     │ ❌ NEVER returned to frontend                               │ │
+│     │ ❌ NEVER logged in plaintext                                │ │
+│     │ ❌ NEVER exposed in API responses                           │ │
+│     └─────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+│  4. AUTO-MIGRATION (Legacy plaintext)                               │
+│     ┌─────────────────────────────────────────────────────────────┐ │
+│     │ If token doesn't start with "ENC:":                         │ │
+│     │   1. Encrypt in memory                                      │ │
+│     │   2. Atomic UPDATE with optimistic locking                  │ │
+│     │   3. Set is_encrypted = 1                                   │ │
+│     │   4. Return decrypted value for current request             │ │
+│     └─────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ### GitHub Integration & Privacy
 
 The app connects to GitHub in two modes:
 
 **1. Public Mode (Default)**
-- **Requires**: Only `github_username`
-- **Access**: Fetches only **public** activity (pushes, PRs, new repos)
-- **Auth**: Uses app-level `GITHUB_TOKEN` (server-side) to increase rate limits
-- **Privacy**: No access to private repositories
+| Aspect | Details |
+|--------|---------|
+| **Requires** | Only `github_username` |
+| **Endpoint** | `/users/{username}/events/public` |
+| **Access** | Public activity only (pushes, PRs, new repos) |
+| **Auth** | App-level `GITHUB_TOKEN` for rate limit boost |
+| **Rate Limit** | 5000 req/hr (with token) or 60 req/hr (without) |
+| **Privacy** | No access to private repositories |
 
 **2. Authenticated Mode (Optional)**
-- **Requires**: User-provided Personal Access Token (PAT)
-- **Access**: Fetches **private** and public activity
-- **Auth**: Uses your PAT for requests
-- **Storage**: PAT is **encrypted at rest** and never exposed to frontend
-- **Privacy**: Allows you to generate posts from work/private projects
+| Aspect | Details |
+|--------|---------|
+| **Requires** | User-provided Personal Access Token (PAT) |
+| **Endpoint** | `/users/{username}/events` |
+| **Access** | Private AND public activity |
+| **Auth** | User's PAT (encrypted in token_store) |
+| **Rate Limit** | 5000 req/hr |
+| **Privacy** | Access to private repos for post generation |
 
-> **Note**: Your GitHub token is used ONLY for fetching activity to generate posts. It is never shared or used for other purposes.
+**Security Guarantees:**
+- ✅ GitHub PAT is **encrypted at rest** in `backend_tokens.db`
+- ✅ PAT is **never exposed** to frontend components
+- ✅ PAT is used **only** for fetching activity to generate posts
+- ✅ Rate limit errors (403) are handled gracefully with fallback
+
+> **Note**: If no user PAT is provided, the app automatically uses Public Mode with the optional app-level `GITHUB_TOKEN` for rate limit boosts.
+
+---
+
+### Frontend Security Model
+
+The frontend **NEVER** receives sensitive data:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    FRONTEND DATA FLOW                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ✅ ALLOWED (Safe Data)                                             │
+│  ─────────────────────                                              │
+│  • linkedin_connected: boolean                                      │
+│  • github_connected: boolean                                        │
+│  • github_username: "public-user"                                   │
+│  • subscription_tier: "free" | "pro"                                │
+│  • onboarding_complete: boolean                                     │
+│                                                                      │
+│  ❌ NEVER SENT (Secrets)                                            │
+│  ─────────────────────                                              │
+│  • access_token                                                     │
+│  • refresh_token                                                    │
+│  • github_access_token (PAT)                                        │
+│  • groq_api_key                                                     │
+│  • linkedin_client_secret                                           │
+│  • unsplash_access_key                                              │
+│  • Any masked versions (e.g., "gsk_xxxx...xxxx")                    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**API Endpoints:**
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/connection-status/{user_id}` | `{linkedin_connected, github_connected, github_username}` |
+| `GET /api/settings/{user_id}` | `{github_username, onboarding_complete, subscription_tier}` |
+| `POST /api/settings` | Accepts only: `user_id`, `github_username`, `onboarding_complete` |
+
+**No credential input fields exist in:**
+- ✅ Settings page
+- ✅ Onboarding flow
+- ✅ Dashboard
+- ✅ Any frontend component
 
 ---
 

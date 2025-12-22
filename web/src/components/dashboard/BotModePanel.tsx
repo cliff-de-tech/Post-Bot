@@ -4,7 +4,7 @@
  * API TYPES: This component uses types from shared/contracts.
  * TO REGENERATE when backend changes: npm run generate:types
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import axios, { AxiosResponse } from 'axios';
 import { showToast } from '@/lib/toast';
 import { PostQueuePanel } from './PostQueuePanel';
@@ -75,6 +75,13 @@ const TEMPLATE_OPTIONS = [
 
 const DAY_OPTIONS = [1, 3, 7, 14, 30];
 
+// AI Model options (Pro feature)
+const AI_MODELS = [
+    { value: 'groq', label: 'Groq (Fast)', icon: '⚡', freeAvailable: true },
+    { value: 'gpt4', label: 'GPT-4', icon: '🧠', freeAvailable: false },
+    { value: 'claude', label: 'Claude', icon: '🎭', freeAvailable: false }
+];
+
 export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: BotModePanelProps) {
 
     // State
@@ -83,9 +90,19 @@ export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: Bot
     const [images, setImages] = useState<UnsplashImage[]>([]);
 
     // Filter states
-    const [searchDays, setSearchDays] = useState(3);
+    const [searchDays, setSearchDays] = useState(tier === 'free' ? 1 : 3);
     const [activityType, setActivityType] = useState('all');
     const [selectedTemplate, setSelectedTemplate] = useState('standard');
+    const [selectedModel, setSelectedModel] = useState('groq');
+
+    // Enforce Free tier restrictions
+    useEffect(() => {
+        if (tier === 'free') {
+            setSearchDays(1);       // Force 24 hours
+            setActivityType('all'); // Force all activities
+            setSelectedModel('groq'); // Force Groq model
+        }
+    }, [tier]);
     const [suggestedActivities, setSuggestedActivities] = useState<Activity[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -358,34 +375,62 @@ export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: Bot
                     <div className="flex flex-wrap justify-center gap-4 mb-6">
                         {/* Time Range */}
                         <div className="flex flex-col items-start">
-                            <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 ml-1">Time Range</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 ml-1">
+                                Time Range
+                                {tier === 'free' && <span className="ml-1 text-orange-500">🔒</span>}
+                            </label>
                             <select
                                 value={searchDays}
-                                onChange={(e) => setSearchDays(Number(e.target.value))}
-                                className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                onChange={(e) => {
+                                    if (tier === 'free') {
+                                        showToast.error('Custom time range is a Pro feature!');
+                                        return;
+                                    }
+                                    setSearchDays(Number(e.target.value));
+                                }}
+                                disabled={tier === 'free'}
+                                className={`px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 ${tier === 'free' ? 'opacity-60 cursor-not-allowed' : ''}`}
                             >
                                 {DAY_OPTIONS.map(days => (
-                                    <option key={days} value={days}>
+                                    <option key={days} value={days} disabled={tier === 'free' && days !== 1}>
                                         {days === 1 ? 'Last 24 hours' : `Last ${days} days`}
+                                        {tier === 'free' && days !== 1 ? ' 🔒' : ''}
                                     </option>
                                 ))}
                             </select>
+                            {tier === 'free' && (
+                                <span className="text-xs text-orange-500 mt-1 ml-1">Pro: Custom range</span>
+                            )}
                         </div>
 
                         {/* Activity Type */}
                         <div className="flex flex-col items-start">
-                            <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 ml-1">Activity Type</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 ml-1">
+                                Activity Type
+                                {tier === 'free' && <span className="ml-1 text-orange-500">🔒</span>}
+                            </label>
                             <select
                                 value={activityType}
-                                onChange={(e) => setActivityType(e.target.value)}
-                                className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 min-w-[180px]"
+                                onChange={(e) => {
+                                    if (tier === 'free') {
+                                        showToast.error('Activity type filter is a Pro feature!');
+                                        return;
+                                    }
+                                    setActivityType(e.target.value);
+                                }}
+                                disabled={tier === 'free'}
+                                className={`px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 min-w-[180px] ${tier === 'free' ? 'opacity-60 cursor-not-allowed' : ''}`}
                             >
                                 {ACTIVITY_TYPES.map(type => (
-                                    <option key={type.value} value={type.value}>
+                                    <option key={type.value} value={type.value} disabled={tier === 'free' && type.value !== 'all'}>
                                         {type.icon} {type.label}
+                                        {tier === 'free' && type.value !== 'all' ? ' 🔒' : ''}
                                     </option>
                                 ))}
                             </select>
+                            {tier === 'free' && (
+                                <span className="text-xs text-orange-500 mt-1 ml-1">Pro: Filter by type</span>
+                            )}
                         </div>
 
                         {/* Post Template */}
@@ -416,6 +461,40 @@ export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: Bot
                                     </option>
                                 ))}
                             </select>
+                        </div>
+
+                        {/* AI Model Selector (Pro Feature) */}
+                        <div className="flex flex-col items-start">
+                            <label className="text-xs text-purple-600 dark:text-purple-400 mb-1 ml-1 font-medium">
+                                AI Model
+                                {tier === 'free' && <span className="ml-1 text-orange-500">🔒</span>}
+                            </label>
+                            <select
+                                value={selectedModel}
+                                onChange={(e) => {
+                                    const model = AI_MODELS.find(m => m.value === e.target.value);
+                                    if (tier === 'free' && !model?.freeAvailable) {
+                                        showToast.error('Advanced AI models are a Pro feature!');
+                                        return;
+                                    }
+                                    setSelectedModel(e.target.value);
+                                }}
+                                disabled={tier === 'free'}
+                                className={`px-4 py-2.5 bg-purple-50 dark:bg-purple-900/30 border-2 border-purple-300 dark:border-purple-700 rounded-xl text-purple-700 dark:text-purple-300 focus:ring-2 focus:ring-purple-500 min-w-[160px] font-medium ${tier === 'free' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            >
+                                {AI_MODELS.map(model => (
+                                    <option
+                                        key={model.value}
+                                        value={model.value}
+                                        disabled={tier === 'free' && !model.freeAvailable}
+                                    >
+                                        {model.icon} {model.label} {tier === 'free' && !model.freeAvailable ? '🔒' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            {tier === 'free' && (
+                                <span className="text-xs text-orange-500 mt-1 ml-1">Pro: GPT-4, Claude</span>
+                            )}
                         </div>
 
                     </div>

@@ -208,7 +208,14 @@ export default function Dashboard() {
   const loadGitHubActivity = async (username: string) => {
     try {
       const response = await axios.get(`${API_BASE}/api/github/activity/${username}`);
-      setGithubActivities(response.data.activities || []);
+      const activities = response.data.activities || [];
+      setGithubActivities(activities);
+
+      // Auto-select the first activity to populate the Post Context card
+      // This ensures the user sees real data immediately instead of placeholders
+      if (activities.length > 0 && activities[0].context) {
+        setContext(activities[0].context as PostContext);
+      }
     } catch (error) {
       // Don't show toast on load, just log
       console.error('Error loading GitHub activity:', error);

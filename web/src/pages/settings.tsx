@@ -223,14 +223,11 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-bg-primary text-text-primary transition-colors duration-300">
+    <div className="min-h-screen relative overflow-hidden bg-transparent text-text-primary transition-colors duration-300">
       <SEOHead title="Settings - PostBot" description="Manage your connections" />
 
-      {/* Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-      </div>
+      {/* Background provided globally by _app.tsx */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0"></div>
 
       {/* Header */}
       <header className="relative bg-white/10 dark:bg-white/5 backdrop-blur-lg border-b border-white/10">
@@ -440,20 +437,7 @@ export default function Settings() {
         )}
       </main>
 
-      <style jsx global>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 10s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-      `}</style>
+
     </div>
   );
 }

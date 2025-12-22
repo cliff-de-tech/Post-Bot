@@ -21,6 +21,7 @@ import FeatureGate from '@/components/ui/FeatureGate';
 import TierBadge from '@/components/ui/TierBadge';
 import WaitlistModal from '@/components/ui/WaitlistModal';
 import HistoryModal from '@/components/ui/HistoryModal';
+import FeedbackModal from '@/components/ui/FeedbackModal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -108,6 +109,11 @@ export default function Dashboard() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
   const [showWaitlist, setShowWaitlist] = useState(false);
+
+  // Feedback modal state
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackAutoTriggered, setFeedbackAutoTriggered] = useState(false);
+  const [sessionPublishCount, setSessionPublishCount] = useState(0);
 
   // DEV TEST MODE: Skip auth and load directly
   useEffect(() => {
@@ -324,6 +330,21 @@ export default function Dashboard() {
       if (result.post) {
         setPreview(result.post);
         await savePost(result.post, testMode ? 'draft' : 'published');
+
+        // Auto-trigger feedback popup after 2nd successful publish
+        if (!testMode) {
+          const newCount = sessionPublishCount + 1;
+          setSessionPublishCount(newCount);
+
+          // Show feedback popup on 2nd publish (if not dismissed before)
+          const hasSubmitted = localStorage.getItem('hasSubmittedFeedback') === 'true';
+          const hasDismissed = localStorage.getItem('feedbackDismissed') === 'true';
+
+          if (newCount === 2 && !hasSubmitted && !hasDismissed) {
+            setFeedbackAutoTriggered(true);
+            setShowFeedback(true);
+          }
+        }
       }
     } catch (error: any) {
       showToast.dismiss(toastId);
@@ -432,6 +453,21 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               History
+            </button>
+
+            {/* Give Feedback Button */}
+            <button
+              onClick={() => {
+                setFeedbackAutoTriggered(false);
+                setShowFeedback(true);
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-2 border-purple-300 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 rounded-lg hover:from-purple-500/20 hover:to-pink-500/20 transition-all flex items-center"
+              aria-label="Give feedback"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              Feedback
             </button>
           </div>
         </div>
@@ -580,6 +616,7 @@ export default function Dashboard() {
               loading={loading}
               status={status}
               hasPreview={!!preview}
+              tier={usage?.tier ?? 'free'}
             />
 
             <PostPreview preview={preview} />
@@ -602,6 +639,22 @@ export default function Dashboard() {
         }))}
 
         loading={loadingData}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => {
+          setShowFeedback(false);
+          // Remember dismissal if auto-triggered
+          if (feedbackAutoTriggered) {
+            localStorage.setItem('feedbackDismissed', 'true');
+          }
+          setFeedbackAutoTriggered(false);
+        }}
+        userId={userId}
+        autoTriggered={feedbackAutoTriggered}
+        autoDismissSeconds={35}
       />
     </div>
   );

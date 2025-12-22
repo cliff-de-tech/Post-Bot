@@ -7,14 +7,14 @@ export default function Terms() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <SEOHead 
+    <div className="min-h-screen bg-transparent text-text-primary">
+      <SEOHead
         title="Terms of Service - LinkedIn Post Bot"
         description="Terms of service for LinkedIn Post Bot. Read our user agreement and guidelines."
       />
-      
+
       {/* Header */}
-      <header className="relative bg-white/10 backdrop-blur-lg border-b border-white/10">
+      <header className="relative bg-white/10 dark:bg-white/5 backdrop-blur-lg border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -29,7 +29,7 @@ export default function Terms() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="text-gray-600 hover:text-gray-900 font-medium"
+              className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
             >
               ← Back
             </button>
@@ -39,24 +39,24 @@ export default function Terms() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 border border-gray-100">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms of Service</h1>
-          <p className="text-sm text-gray-500 mb-8">Last updated: December 20, 2025</p>
+        <div className="bg-white/90 dark:bg-white/10 backdrop-blur-xl rounded-2xl shadow-xl p-8 md:p-12 border border-white/20">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Terms of Service</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Last updated: December 20, 2025</p>
 
-          <div className="prose prose-blue max-w-none space-y-8">
+          <div className="prose prose-blue dark:prose-invert max-w-none space-y-8">
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Agreement to Terms</h2>
-              <p className="text-gray-700 leading-relaxed">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Agreement to Terms</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 By accessing and using LinkedIn Post Bot ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not use our Service.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Description of Service</h2>
-              <p className="text-gray-700 leading-relaxed mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Description of Service</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
                 LinkedIn Post Bot provides automated content generation and publishing tools for LinkedIn, including:
               </p>
-              <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4">
+              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 ml-4">
                 <li>AI-powered post generation using Groq LLM</li>
                 <li>GitHub activity tracking for content ideas</li>
                 <li>LinkedIn post publishing via OAuth</li>
@@ -66,8 +66,8 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">User Responsibilities</h2>
-              <div className="space-y-4 text-gray-700">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">User Responsibilities</h2>
+              <div className="space-y-4 text-gray-700 dark:text-gray-300">
                 <p>When using our Service, you agree to:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Provide accurate and complete information</li>
@@ -82,8 +82,8 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">API Credentials and Third-Party Services</h2>
-              <div className="space-y-4 text-gray-700">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">API Credentials and Third-Party Services</h2>
+              <div className="space-y-4 text-gray-700 dark:text-gray-300">
                 <p>
                   You are responsible for obtaining and maintaining your own API credentials for:
                 </p>
@@ -100,8 +100,8 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Content Ownership and License</h2>
-              <div className="space-y-4 text-gray-700">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Content Ownership and License</h2>
+              <div className="space-y-4 text-gray-700 dark:text-gray-300">
                 <p>
                   <strong>Your Content:</strong> You retain all ownership rights to content you create using our Service. By using the Service, you grant us a limited license to process and store your content to provide the Service.
                 </p>
@@ -115,9 +115,9 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Prohibited Uses</h2>
-              <p className="text-gray-700 leading-relaxed mb-4">You may not use the Service to:</p>
-              <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Prohibited Uses</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">You may not use the Service to:</p>
+              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 ml-4">
                 <li>Violate any laws or regulations</li>
                 <li>Infringe on intellectual property rights</li>
                 <li>Post spam, malware, or harmful content</li>
@@ -130,8 +130,8 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Disclaimers</h2>
-              <div className="space-y-4 text-gray-700">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Disclaimers</h2>
+              <div className="space-y-4 text-gray-700 dark:text-gray-300">
                 <p>
                   <strong>NO WARRANTIES:</strong> The Service is provided "AS IS" and "AS AVAILABLE" without any warranties of any kind, either express or implied.
                 </p>
@@ -145,11 +145,11 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Limitation of Liability</h2>
-              <p className="text-gray-700 leading-relaxed">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Limitation of Liability</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 To the maximum extent permitted by law, LinkedIn Post Bot shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:
               </p>
-              <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4 mt-4">
+              <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 ml-4 mt-4">
                 <li>Your use or inability to use the Service</li>
                 <li>Any unauthorized access to or use of our servers</li>
                 <li>Any interruption or cessation of the Service</li>
@@ -160,35 +160,35 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Termination</h2>
-              <p className="text-gray-700 leading-relaxed">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Termination</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 We reserve the right to terminate or suspend your access to the Service at any time, without prior notice or liability, for any reason, including breach of these Terms. You may also terminate your use of the Service at any time by revoking OAuth access and deleting your data.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Changes to Terms</h2>
-              <p className="text-gray-700 leading-relaxed">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Changes to Terms</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 We reserve the right to modify these Terms at any time. We will notify users of any material changes by updating the "Last updated" date. Continued use of the Service after changes constitutes acceptance of the new Terms.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Governing Law</h2>
-              <p className="text-gray-700 leading-relaxed">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Governing Law</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law provisions.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Contact Us</h2>
-              <p className="text-gray-700 leading-relaxed">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Contact Us</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 If you have questions about these Terms, please contact us through the support channels on our website.
               </p>
             </section>
 
-            <div className="bg-amber-50 border-l-4 border-amber-600 p-6 rounded-r-lg mt-8">
-              <p className="text-sm text-amber-900">
+            <div className="bg-amber-50 dark:bg-amber-500/10 border-l-4 border-amber-600 p-6 rounded-r-lg mt-8">
+              <p className="text-sm text-amber-900 dark:text-amber-200">
                 <strong>Legal Notice:</strong> This is a template Terms of Service for development purposes. Before launching in production, you must consult with a qualified attorney to create legally binding terms that comply with your jurisdiction and business model.
               </p>
             </div>

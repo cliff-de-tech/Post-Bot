@@ -625,12 +625,12 @@ export default function Home() {
                 COMING SOON
               </div>
               <div className="text-lg font-semibold text-blue-100 mb-2">Pro</div>
-              <div className="text-4xl font-bold mb-1">$19</div>
+              <div className="text-4xl font-bold mb-1">$10</div>
               <div className="text-blue-200 mb-6">/month</div>
               <ul className="space-y-3 mb-8 opacity-80">
                 {[
                   'Unlimited posts',
-                  '🧠 3 AI models (GPT-4, Claude, Groq)',
+                  '🧠 3 AI models (GPT-4, Claude, Gemini-3-flash)',
                   '📅 Custom time range (1-30 days)',
                   '🔍 Filter by activity type',
                   '📝 Commit message reading',
@@ -659,7 +659,7 @@ export default function Home() {
                 COMING SOON
               </div>
               <div className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">Team</div>
-              <div className="text-4xl font-bold mb-1">$49</div>
+              <div className="text-4xl font-bold mb-1">$30</div>
               <div className="text-gray-500 mb-6">/month</div>
               <ul className="space-y-3 mb-8 opacity-70">
                 {[

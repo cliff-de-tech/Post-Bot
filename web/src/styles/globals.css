@@ -352,3 +352,74 @@
     transform: translateY(-5px);
   }
 }
+
+@keyframes float-up {
+  0% {
+    transform: translateY(120vh) scale(0.5);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.8;
+  }
+
+  80% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(-20vh) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes float-down {
+  0% {
+    transform: translateY(-20vh) scale(1.2);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.8;
+  }
+
+  80% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(120vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Antigravity variant classes */
+.animate-float-up {
+  animation: float-up 15s linear infinite;
+}
+
+.animate-float-up-slow {
+  animation: float-up 25s linear infinite;
+}
+
+.animate-float-up-fast {
+  animation: float-up 10s linear infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}

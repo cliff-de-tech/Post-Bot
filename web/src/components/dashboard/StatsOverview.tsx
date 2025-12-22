@@ -4,13 +4,20 @@ import { Skeleton } from '@/components/ui/SkeletonLoader';
 interface StatsProps {
     stats: {
         posts_generated: number;
-        credits_remaining: number;
         posts_published: number;
+        growth_percentage?: number;  // Week-over-week growth
+        posts_this_week?: number;
+        posts_last_week?: number;
     } | null;
     loading: boolean;
 }
 
 export const StatsOverview: React.FC<StatsProps> = ({ stats, loading }) => {
+    // Get growth data
+    const growthPercent = stats?.growth_percentage ?? 0;
+    const isPositive = growthPercent >= 0;
+    const hasNoHistory = (stats?.posts_last_week ?? 0) === 0 && (stats?.posts_this_week ?? 0) > 0;
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" role="region" aria-label="Dashboard statistics">
             {/* Generated Card */}
@@ -28,12 +35,31 @@ export const StatsOverview: React.FC<StatsProps> = ({ stats, loading }) => {
                 ) : (
                     <div className="flex items-baseline gap-2" aria-labelledby="generated-label">
                         <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.posts_generated || 0}</span>
-                        <span className="text-sm text-green-500 flex items-center" aria-label="12 percent increase">
-                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                            </svg>
-                            +12%
-                        </span>
+
+                        {/* Dynamic Week-over-Week Percentage */}
+                        {hasNoHistory ? (
+                            <span className="text-sm text-blue-500 flex items-center" aria-label="New this week">
+                                ✨ New!
+                            </span>
+                        ) : growthPercent !== 0 ? (
+                            <span
+                                className={`text-sm flex items-center ${isPositive ? 'text-green-500' : 'text-red-500'}`}
+                                aria-label={`${Math.abs(growthPercent)} percent ${isPositive ? 'increase' : 'decrease'}`}
+                            >
+                                <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    {isPositive ? (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                    ) : (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    )}
+                                </svg>
+                                {isPositive ? '+' : ''}{growthPercent}%
+                            </span>
+                        ) : (
+                            <span className="text-sm text-gray-400 flex items-center">
+                                — same as last week
+                            </span>
+                        )}
                     </div>
                 )}
             </div>
@@ -60,5 +86,3 @@ export const StatsOverview: React.FC<StatsProps> = ({ stats, loading }) => {
         </div>
     );
 };
-
-

@@ -22,6 +22,7 @@ interface PostQueuePanelProps {
     onSelectImage: (postId: string) => void;
     isPublishing: string | null;
     testMode: boolean;
+    isLimitReached?: boolean;  // True when daily publish limit hit (10/10)
 }
 
 /**
@@ -41,7 +42,8 @@ export function PostQueuePanel({
     onDiscard,
     onSelectImage,
     isPublishing,
-    testMode
+    testMode,
+    isLimitReached = false
 }: PostQueuePanelProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
@@ -352,17 +354,24 @@ export function PostQueuePanel({
                                         {/* Publish button */}
                                         <button
                                             onClick={() => onPublish(post.id)}
-                                            disabled={isPublishing === post.id || post.status === 'published'}
-                                            className={`px-4 py-2 text-sm rounded-lg font-semibold transition-all flex items-center gap-2 ${post.status === 'published'
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed'
-                                                    : isPublishing === post.id
-                                                        ? 'bg-blue-400 text-white cursor-wait'
-                                                        : testMode
-                                                            ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg'
-                                                            : 'bg-[#0a66c2] hover:bg-[#004182] text-white shadow-md hover:shadow-lg'
+                                            disabled={isPublishing === post.id || post.status === 'published' || isLimitReached}
+                                            className={`px-4 py-2 text-sm rounded-lg font-semibold transition-all flex items-center gap-2 ${isLimitReached && post.status !== 'published'
+                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 cursor-not-allowed opacity-75'
+                                                    : post.status === 'published'
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed'
+                                                        : isPublishing === post.id
+                                                            ? 'bg-blue-400 text-white cursor-wait'
+                                                            : testMode
+                                                                ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg'
+                                                                : 'bg-[#0a66c2] hover:bg-[#004182] text-white shadow-md hover:shadow-lg'
                                                 }`}
                                         >
-                                            {isPublishing === post.id ? (
+                                            {isLimitReached && post.status !== 'published' ? (
+                                                <>
+                                                    <span>🔒</span>
+                                                    Limit Reached
+                                                </>
+                                            ) : isPublishing === post.id ? (
                                                 <>
                                                     <span className="animate-spin">⏳</span>
                                                     Publishing...

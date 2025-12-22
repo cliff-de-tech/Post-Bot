@@ -111,7 +111,7 @@ export default function UsageCounter({ usage, compact = false, onUpgradeClick }:
                 <div className="flex items-center gap-3">
                     {/* Tier Badge */}
                     <span className={`px-3 py-1 text-xs font-bold rounded-full ${colors.bg} ${colors.text} border ${colors.border} uppercase tracking-wide`}>
-                        {usage.tier} Plan
+                        {tier === 'free' ? 'Free (BETA)' : `${usage.tier} Plan`}
                     </span>
 
                     {/* Reset timer for limited tiers */}
@@ -154,7 +154,7 @@ export default function UsageCounter({ usage, compact = false, onUpgradeClick }:
                     {/* Posts Today */}
                     <div>
                         <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Posts Today</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Published Today</span>
                             <span className={`text-sm font-bold ${isExhausted ? 'text-red-500' : isLow ? 'text-yellow-500' : 'text-gray-900 dark:text-white'
                                 }`}>
                                 {usage.posts_today} / {usage.posts_limit}
@@ -165,10 +165,10 @@ export default function UsageCounter({ usage, compact = false, onUpgradeClick }:
                         <div className="h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
                                 className={`h-full rounded-full transition-all duration-500 ${isExhausted
-                                        ? 'bg-red-500'
-                                        : isLow
-                                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                                            : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                                    ? 'bg-red-500'
+                                    : isLow
+                                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                                        : 'bg-gradient-to-r from-blue-500 to-purple-500'
                                     }`}
                                 style={{ width: `${Math.min(100, percentUsed)}%` }}
                             />
@@ -184,8 +184,8 @@ export default function UsageCounter({ usage, compact = false, onUpgradeClick }:
                             Scheduled
                         </span>
                         <span className={`font-medium ${usage.scheduled_remaining === 0
-                                ? 'text-red-500'
-                                : 'text-gray-700 dark:text-gray-300'
+                            ? 'text-red-500'
+                            : 'text-gray-700 dark:text-gray-300'
                             }`}>
                             {usage.scheduled_count} / {usage.scheduled_limit}
                         </span>
@@ -193,18 +193,39 @@ export default function UsageCounter({ usage, compact = false, onUpgradeClick }:
                 </div>
             )}
 
-            {/* Exhausted Warning */}
+            {/* Exhausted Warning with LinkedIn Safety Info */}
             {isExhausted && (
-                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                    <div className="flex items-start gap-2 text-red-600 dark:text-red-400 text-sm">
-                        <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="flex items-start gap-3 text-red-600 dark:text-red-400">
+                        <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         <div>
-                            <span className="font-medium">Daily limit reached.</span>
-                            <span className="block text-red-500 dark:text-red-400/80">
-                                New posts available in {formatTimeRemaining(timeRemaining)}
-                            </span>
+                            <p className="font-semibold">⏳ Daily limit reached!</p>
+                            <p className="text-sm text-red-500 dark:text-red-400/80 mt-1">
+                                Publish slots reset in <span className="font-bold">{formatTimeRemaining(timeRemaining)}</span>
+                            </p>
+
+                            {/* LinkedIn Safety Warning */}
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                <p className="text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                                    <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                                    </svg>
+                                    <span>
+                                        <strong>LinkedIn Safety:</strong> Posting too frequently can flag your account for spam.
+                                        This limit protects your account from potential violations.
+                                    </span>
+                                </p>
+                            </div>
+
+                            {/* Upgrade CTA */}
+                            <button
+                                onClick={onUpgradeClick}
+                                className="mt-3 w-full py-2 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-semibold rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2"
+                            >
+                                ⚡ Upgrade to Pro for Unlimited Posts
+                            </button>
                         </div>
                     </div>
                 </div>

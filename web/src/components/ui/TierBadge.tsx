@@ -14,7 +14,7 @@ interface TierBadgeProps {
 
 const tierConfig: Record<string, { label: string; colors: string; icon: string }> = {
     free: {
-        label: 'Free',
+        label: 'Free (BETA)',
         colors: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600',
         icon: '⚡'
     },

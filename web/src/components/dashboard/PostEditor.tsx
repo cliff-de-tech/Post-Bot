@@ -1,5 +1,6 @@
 import React from 'react';
 import { PostContext } from '@/types/dashboard';
+import { showToast } from '@/lib/toast';
 
 interface PostEditorProps {
     context: PostContext;
@@ -9,7 +10,16 @@ interface PostEditorProps {
     loading: boolean;
     status: string;
     hasPreview: boolean;
+    tier?: string;  // User's subscription tier
 }
+
+// Post type options with free tier availability
+const POST_TYPES = [
+    { value: 'push', label: 'Push Event', icon: '🚀', freeAvailable: true },
+    { value: 'generic', label: 'Generic Post', icon: '📝', freeAvailable: true },
+    { value: 'pull_request', label: 'Pull Request', icon: '🔀', freeAvailable: false },
+    { value: 'new_repo', label: 'New Repository', icon: '✨', freeAvailable: false },
+];
 
 export const PostEditor: React.FC<PostEditorProps> = ({
     context,
@@ -18,8 +28,20 @@ export const PostEditor: React.FC<PostEditorProps> = ({
     onPublish,
     loading,
     status,
-    hasPreview
+    hasPreview,
+    tier = 'free'
 }) => {
+    const handlePostTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newType = e.target.value;
+        const postType = POST_TYPES.find(p => p.value === newType);
+
+        if (tier === 'free' && postType && !postType.freeAvailable) {
+            showToast.error('🔒 This post type is a Pro feature!');
+            return;
+        }
+        setContext({ ...context, type: newType });
+    };
+
     return (
         <div className="bg-white dark:bg-white/5 rounded-2xl shadow-lg border border-gray-100 dark:border-white/10 p-8">
             <div className="flex items-center justify-between mb-6">
@@ -33,18 +55,31 @@ export const PostEditor: React.FC<PostEditorProps> = ({
 
             <div className="space-y-5">
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Post Type</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Post Type
+                        {tier === 'free' && <span className="ml-2 text-orange-500 text-xs">🔒 Some types locked</span>}
+                    </label>
                     <select
                         value={context.type}
-                        onChange={(e) => setContext({ ...context, type: e.target.value })}
+                        onChange={handlePostTypeChange}
                         className="w-full bg-white dark:bg-white/5 border-2 border-gray-200 dark:border-white/10 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900 dark:text-white"
                         aria-label="Post type"
                     >
-                        <option value="push">🚀 Push Event</option>
-                        <option value="pull_request">🔀 Pull Request</option>
-                        <option value="new_repo">✨ New Repository</option>
-                        <option value="generic">📝 Generic Post</option>
+                        {POST_TYPES.map((type) => (
+                            <option
+                                key={type.value}
+                                value={type.value}
+                                disabled={tier === 'free' && !type.freeAvailable}
+                            >
+                                {type.icon} {type.label} {tier === 'free' && !type.freeAvailable ? '🔒 Pro' : ''}
+                            </option>
+                        ))}
                     </select>
+                    {tier === 'free' && (
+                        <p className="mt-1 text-xs text-orange-500">
+                            Pro: Unlock Pull Request & New Repo post types
+                        </p>
+                    )}
                 </div>
 
                 {context.type === 'push' && (
@@ -144,8 +179,8 @@ export const PostEditor: React.FC<PostEditorProps> = ({
 
                 {status && (
                     <div className={`mt-4 p-4 rounded-lg border-2 ${status.includes('❌')
-                            ? 'bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-200 border-red-200 dark:border-red-900/30'
-                            : 'bg-green-50 dark:bg-green-900/10 text-green-700 dark:text-green-200 border-green-200 dark:border-green-900/30'
+                        ? 'bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-200 border-red-200 dark:border-red-900/30'
+                        : 'bg-green-50 dark:bg-green-900/10 text-green-700 dark:text-green-200 border-green-200 dark:border-green-900/30'
                         } flex items-start`}>
                         <span className="text-lg mr-2">{status.includes('❌') ? '❌' : '✨'}</span>
                         <span className="flex-1">{status.replace(/[❌✨🚀📝]/g, '').trim()}</span>

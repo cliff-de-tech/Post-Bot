@@ -79,9 +79,26 @@ export default function Dashboard() {
     credits_remaining: 50,
     posts_published: 0,
     posts_this_month: 0,
+    posts_this_week: 0,
+    posts_last_week: 0,
+    growth_percentage: 0,
     draft_posts: 0
   });
+  const [usageData, setUsageData] = useState<{
+    tier: string;
+    posts_today: number;
+    posts_limit: number;
+    posts_remaining: number;
+    scheduled_count: number;
+    scheduled_limit: number;
+    scheduled_remaining: number;
+    resets_in_seconds: number;
+    resets_at: string | null;
+  } | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+
+  // Computed: is daily limit reached?
+  const isLimitReached = usageData?.posts_remaining === 0;
 
 
   // Modals
@@ -178,9 +195,17 @@ export default function Dashboard() {
 
   const loadUsage = async (uid: string) => {
     try {
-      const response = await axios.get(`${API_BASE}/api/usage/${uid}`);
+      // Get user's timezone for accurate reset time
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const response = await axios.get(`${API_BASE}/api/usage/${uid}`, {
+        params: { timezone }
+      });
       if (response.data?.success && response.data?.usage) {
         setUsage(response.data.usage);
+      }
+      // Also set usageData for limit tracking
+      if (response.data) {
+        setUsageData(response.data);
       }
     } catch (error) {
       console.error('Error loading usage:', error);
@@ -426,6 +451,7 @@ export default function Dashboard() {
             userId={userId}
             postsRemaining={usage?.posts_remaining ?? 10}
             tier={usage?.tier ?? 'free'}
+            isLimitReached={isLimitReached ?? false}
           />
         </div>
 

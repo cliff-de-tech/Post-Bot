@@ -145,25 +145,50 @@ def get_user_stats(user_id: str):
     conn = get_conn()
     cur = conn.cursor()
     
-    # Total posts
+    # Total posts (all time)
     cur.execute('SELECT COUNT(*) FROM post_history WHERE user_id=?', (user_id,))
     total_posts = cur.fetchone()[0]
     
-    # Published posts
+    # Published posts (all time)
     cur.execute('SELECT COUNT(*) FROM post_history WHERE user_id=? AND status=?', (user_id, 'published'))
     published_posts = cur.fetchone()[0]
     
-    # This month
+    # This month (30 days)
     current_month_start = int(time.time()) - (30 * 24 * 60 * 60)
     cur.execute('SELECT COUNT(*) FROM post_history WHERE user_id=? AND created_at > ?', (user_id, current_month_start))
     posts_this_month = cur.fetchone()[0]
     
+    # Week-over-week growth calculation
+    one_week_ago = int(time.time()) - (7 * 24 * 60 * 60)
+    two_weeks_ago = int(time.time()) - (14 * 24 * 60 * 60)
+    
+    # Posts this week (last 7 days)
+    cur.execute('SELECT COUNT(*) FROM post_history WHERE user_id=? AND created_at > ?', 
+                (user_id, one_week_ago))
+    posts_this_week = cur.fetchone()[0]
+    
+    # Posts last week (7-14 days ago)
+    cur.execute('SELECT COUNT(*) FROM post_history WHERE user_id=? AND created_at > ? AND created_at <= ?', 
+                (user_id, two_weeks_ago, one_week_ago))
+    posts_last_week = cur.fetchone()[0]
+    
+    # Calculate growth percentage
+    if posts_last_week > 0:
+        growth_percentage = round(((posts_this_week - posts_last_week) / posts_last_week) * 100)
+    elif posts_this_week > 0:
+        growth_percentage = 100  # All new this week (100% growth from 0)
+    else:
+        growth_percentage = 0  # No posts at all
+    
     conn.close()
     
     return {
-        'total_posts': total_posts,
-        'published_posts': published_posts,
+        'posts_generated': total_posts,
+        'posts_published': published_posts,
         'posts_this_month': posts_this_month,
+        'posts_this_week': posts_this_week,
+        'posts_last_week': posts_last_week,
+        'growth_percentage': growth_percentage,
         'draft_posts': total_posts - published_posts
     }
 
@@ -177,25 +202,42 @@ FREE_TIER_DAILY_POSTS = 10
 FREE_TIER_SCHEDULED_POSTS = 10
 
 
-def get_daily_post_count(user_id: str) -> int:
+def get_daily_post_count(user_id: str, user_timezone: str = "UTC") -> int:
     """
-    Count posts created by user today (UTC).
-    Used for enforcing daily post generation limit.
+    Count PUBLISHED posts by user today (in user's local timezone).
+    Used for enforcing daily post limit (10 published posts/day for free tier).
+    
+    Args:
+        user_id: The user's ID
+        user_timezone: User's timezone string (e.g., 'America/New_York', 'Europe/London')
+                      Defaults to UTC if not provided or invalid.
     """
     init_db()
     conn = get_conn()
     cur = conn.cursor()
     
-    # Get start of today (UTC midnight)
+    # Get start of today in user's timezone
     import datetime
-    today_start = int(datetime.datetime.utcnow().replace(
-        hour=0, minute=0, second=0, microsecond=0
-    ).timestamp())
+    try:
+        from zoneinfo import ZoneInfo
+        user_tz = ZoneInfo(user_timezone)
+    except Exception:
+        # Fallback to UTC if timezone invalid
+        from zoneinfo import ZoneInfo
+        user_tz = ZoneInfo("UTC")
     
+    # Get current time in user's timezone
+    now_local = datetime.datetime.now(user_tz)
+    # Get start of today (midnight) in user's timezone
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Convert to UTC timestamp for database query
+    today_start_utc = int(today_start_local.timestamp())
+    
+    # Only count PUBLISHED posts (not drafts or generated)
     cur.execute('''
     SELECT COUNT(*) FROM post_history 
-    WHERE user_id=? AND created_at >= ?
-    ''', (user_id, today_start))
+    WHERE user_id=? AND status='published' AND published_at >= ?
+    ''', (user_id, today_start_utc))
     
     count = cur.fetchone()[0]
     conn.close()
@@ -228,22 +270,39 @@ def get_scheduled_post_count(user_id: str) -> int:
         return 0
 
 
-def get_user_usage(user_id: str, tier: str = "free") -> dict:
+def get_user_usage(user_id: str, tier: str = "free", user_timezone: str = "UTC") -> dict:
     """
     Get comprehensive usage data for a user.
-    Returns current usage counts, limits, and reset time.
+    Returns current usage counts, limits, and reset time (in user's timezone).
+    
+    Args:
+        user_id: The user's ID
+        tier: Subscription tier ("free", "pro", "team")
+        user_timezone: User's timezone string (e.g., 'America/New_York')
     """
     import datetime
     
-    posts_today = get_daily_post_count(user_id)
+    # Get post count with timezone support
+    posts_today = get_daily_post_count(user_id, user_timezone)
     scheduled_count = get_scheduled_post_count(user_id)
     
-    # Calculate time until reset (next UTC midnight)
-    now = datetime.datetime.utcnow()
-    tomorrow = (now + datetime.timedelta(days=1)).replace(
+    # Calculate time until reset (next midnight in user's timezone)
+    try:
+        from zoneinfo import ZoneInfo
+        user_tz = ZoneInfo(user_timezone)
+    except Exception:
+        from zoneinfo import ZoneInfo
+        user_tz = ZoneInfo("UTC")
+    
+    now_local = datetime.datetime.now(user_tz)
+    # Next midnight in user's timezone
+    tomorrow_midnight = (now_local + datetime.timedelta(days=1)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    seconds_until_reset = int((tomorrow - now).total_seconds())
+    seconds_until_reset = int((tomorrow_midnight - now_local).total_seconds())
+    
+    # Format reset time as ISO string
+    reset_time_iso = tomorrow_midnight.isoformat()
     
     if tier == "free":
         return {
@@ -255,7 +314,8 @@ def get_user_usage(user_id: str, tier: str = "free") -> dict:
             "scheduled_limit": FREE_TIER_SCHEDULED_POSTS,
             "scheduled_remaining": max(0, FREE_TIER_SCHEDULED_POSTS - scheduled_count),
             "resets_in_seconds": seconds_until_reset,
-            "resets_at": tomorrow.isoformat() + "Z"
+            "resets_at": reset_time_iso,
+            "timezone": user_timezone
         }
     else:
         # Pro/Team tiers have unlimited usage

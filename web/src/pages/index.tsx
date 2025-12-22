@@ -595,12 +595,12 @@ export default function Home() {
               <div className="text-gray-500 mb-6">Forever free</div>
               <ul className="space-y-3 mb-8">
                 {[
-                  '10 posts per day',
-                  '10 scheduled posts',
-                  'Standard AI template',
-                  'GitHub integration',
+                  '10 posts per month',
+                  '⚡ Groq AI content generation',
+                  'Bot scans last 24 hours only',
+                  'All activities (no filtering)',
+                  'Standard template only',
                   'Manual publishing',
-                  'Basic analytics (7 days)',
                   'Community support'
                 ].map((feature, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
@@ -630,11 +630,12 @@ export default function Home() {
               <ul className="space-y-3 mb-8 opacity-80">
                 {[
                   'Unlimited posts',
-                  'All AI templates',
-                  'Advanced customization',
-                  'Unlimited scheduling',
-                  'Priority support',
-                  'Full analytics (30 days)'
+                  '🧠 3 AI models (GPT-4, Claude, Groq)',
+                  '📅 Custom time range (1-30 days)',
+                  '🔍 Filter by activity type',
+                  '📝 Commit message reading',
+                  'All post templates',
+                  'Priority support'
                 ].map((feature, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <svg className="w-5 h-5 text-blue-200 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

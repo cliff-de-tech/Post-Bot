@@ -52,6 +52,7 @@ interface BotModePanelProps {
     userId: string;
     postsRemaining?: number;
     tier?: string;
+    isLimitReached?: boolean;  // True when daily publish limit hit (10/10)
 }
 
 
@@ -82,7 +83,7 @@ const AI_MODELS = [
     { value: 'claude', label: 'Claude', icon: '🎭', freeAvailable: false }
 ];
 
-export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: BotModePanelProps) {
+export function BotModePanel({ userId, postsRemaining = 10, tier = 'free', isLimitReached = false }: BotModePanelProps) {
 
     // State
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -98,9 +99,10 @@ export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: Bot
     // Enforce Free tier restrictions
     useEffect(() => {
         if (tier === 'free') {
-            setSearchDays(1);       // Force 24 hours
-            setActivityType('all'); // Force all activities
-            setSelectedModel('groq'); // Force Groq model
+            setSearchDays(1);           // Force 24 hours
+            setActivityType('all');     // Force all activities
+            setSelectedTemplate('standard'); // Force standard template
+            setSelectedModel('groq');   // Force Groq model
         }
     }, [tier]);
     const [suggestedActivities, setSuggestedActivities] = useState<Activity[]>([]);
@@ -437,19 +439,19 @@ export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: Bot
                         <div className="flex flex-col items-start">
                             <label className="text-xs text-blue-600 dark:text-blue-400 mb-1 ml-1 font-medium">
                                 Post Style
-                                {tier === 'free' && <span className="ml-1 text-gray-400">(Free: Standard only)</span>}
+                                {tier === 'free' && <span className="ml-1 text-orange-500">🔒</span>}
                             </label>
                             <select
                                 value={selectedTemplate}
                                 onChange={(e) => {
-                                    const template = TEMPLATE_OPTIONS.find(t => t.value === e.target.value);
-                                    if (tier === 'free' && !template?.freeAvailable) {
-                                        showToast.error('This template is available in Pro tier - Coming Soon!');
+                                    if (tier === 'free') {
+                                        showToast.error('Custom post styles are a Pro feature!');
                                         return;
                                     }
                                     setSelectedTemplate(e.target.value);
                                 }}
-                                className="px-4 py-2.5 bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-xl text-blue-700 dark:text-blue-300 focus:ring-2 focus:ring-blue-500 min-w-[200px] font-medium"
+                                disabled={tier === 'free'}
+                                className={`px-4 py-2.5 bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-xl text-blue-700 dark:text-blue-300 focus:ring-2 focus:ring-blue-500 min-w-[200px] font-medium ${tier === 'free' ? 'opacity-60 cursor-not-allowed' : ''}`}
                             >
                                 {TEMPLATE_OPTIONS.map(template => (
                                     <option
@@ -457,10 +459,13 @@ export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: Bot
                                         value={template.value}
                                         disabled={tier === 'free' && !template.freeAvailable}
                                     >
-                                        {template.icon} {template.label} {tier === 'free' && !template.freeAvailable ? '🔒 Pro' : ''}
+                                        {template.icon} {template.label} {tier === 'free' && !template.freeAvailable ? '🔒' : ''}
                                     </option>
                                 ))}
                             </select>
+                            {tier === 'free' && (
+                                <span className="text-xs text-orange-500 mt-1 ml-1">Pro: Custom tones</span>
+                            )}
                         </div>
 
                         {/* AI Model Selector (Pro Feature) */}

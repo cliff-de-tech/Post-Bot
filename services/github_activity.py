@@ -112,9 +112,21 @@ def parse_event(event):
     
     if event_type == 'PushEvent':
         payload = event.get('payload', {})
-        commits = len(payload.get('commits', []))
+        commits_data = payload.get('commits', [])
+        commits_count = len(commits_data)
+        
+        # Extract commit messages for personalized posts (Pro feature)
+        # Limit to 5 messages, truncate each to 100 chars
+        commit_messages = []
+        for commit in commits_data[:5]:
+            message = commit.get('message', '')
+            # Take first line only and truncate
+            first_line = message.split('\n')[0][:100]
+            if first_line:
+                commit_messages.append(first_line)
+        
         # Handle both regular pushes and force pushes/updates (0 commits)
-        if commits == 0:
+        if commits_count == 0:
             # Force push or branch update - still show it
             activity.update({
                 'type': 'push',
@@ -126,21 +138,30 @@ def parse_event(event):
                     'commits': 0,
                     'repo': repo.split('/')[-1],
                     'full_repo': repo,
-                    'date': time_ago
+                    'date': time_ago,
+                    'commit_messages': []
                 }
             })
         else:
+            # Build a summary description from commit messages
+            description = f"{commits_count} new commit{'s' if commits_count != 1 else ''}"
+            if commit_messages:
+                description = commit_messages[0][:60]
+                if len(commit_messages) > 1:
+                    description += f" (+{len(commit_messages)-1} more)"
+            
             activity.update({
                 'type': 'push',
                 'icon': '🚀',
-                'title': f"Pushed {commits} commit{'s' if commits != 1 else ''} to {repo}",
-                'description': f"{commits} new commit{'s' if commits != 1 else ''}",
+                'title': f"Pushed {commits_count} commit{'s' if commits_count != 1 else ''} to {repo}",
+                'description': description,
                 'context': {
                     'type': 'push',
-                    'commits': commits,
+                    'commits': commits_count,
                     'repo': repo.split('/')[-1],
                     'full_repo': repo,
-                    'date': time_ago
+                    'date': time_ago,
+                    'commit_messages': commit_messages  # Pro feature data
                 }
             })
         return activity

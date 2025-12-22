@@ -987,9 +987,32 @@ class FullPublishRequest(BaseModel):
 
 @app.post("/api/github/scan")
 async def scan_github_activity(req: ScanRequest):
-    """Scan GitHub for recent activity (like the bot does)"""
+    """Scan GitHub for recent activity (like the bot does)
+    
+    TIER RESTRICTIONS:
+    - Free tier: Limited to 24-hour scan, all activities only
+    - Pro tier: Full customization (1-30 days, filter by type)
+    """
     if not get_user_activity:
         return {"error": "GitHub activity service not available"}
+    
+    # Get user's subscription tier
+    user_tier = 'free'  # Default
+    if get_user_settings:
+        try:
+            settings = get_user_settings(req.user_id)
+            if settings:
+                user_tier = settings.get('subscription_tier', 'free')
+        except Exception:
+            pass
+    
+    # TIER ENFORCEMENT: Force Free tier restrictions
+    scan_hours = req.hours
+    scan_activity_type = req.activity_type
+    if user_tier == 'free':
+        if scan_hours > 24:
+            scan_hours = 24  # Free tier: Max 24 hours
+        scan_activity_type = 'all'  # Free tier: No filtering
     
     # Get user's GitHub username from settings
     github_username = None
@@ -1025,7 +1048,7 @@ async def scan_github_activity(req: ScanRequest):
         
         # Filter to recent hours
         from datetime import datetime, timezone, timedelta
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=req.hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=scan_hours)
         
         all_recent_activities = []
         for activity in activities:
@@ -1042,16 +1065,16 @@ async def scan_github_activity(req: ScanRequest):
                     'repo': activity.get('repo')
                 })
         
-        # Filter by activity type if specified
+        # Filter by activity type if specified (and Pro tier)
         filtered_activities = all_recent_activities
-        if req.activity_type and req.activity_type not in ['all', 'generic']:
+        if scan_activity_type and scan_activity_type not in ['all', 'generic']:
             type_mapping = {
                 'push': 'push',
                 'pull_request': 'pull_request',
                 'new_repo': 'new_repo',
                 'commits': 'push'  # commits are part of push events
             }
-            target_type = type_mapping.get(req.activity_type, req.activity_type)
+            target_type = type_mapping.get(scan_activity_type, scan_activity_type)
             filtered_activities = [a for a in all_recent_activities if a.get('type') == target_type]
         
         return {
@@ -1070,8 +1093,13 @@ async def scan_github_activity(req: ScanRequest):
 # =============================================================================
 
 @app.get("/api/usage/{user_id}")
-def get_usage(user_id: str):
-    """Get user's current usage data for free tier limits"""
+def get_usage(user_id: str, timezone: str = "UTC"):
+    """Get user's current usage data for free tier limits
+    
+    Args:
+        user_id: User identifier
+        timezone: User's timezone for accurate reset time (e.g., 'America/New_York')
+    """
     try:
         if not get_user_usage:
             return {"error": "Usage tracking not available"}
@@ -1086,8 +1114,9 @@ def get_usage(user_id: str):
             except Exception:
                 pass
         
-        usage = get_user_usage(user_id, tier)
-        return {"success": True, "usage": usage}
+        # Pass timezone for accurate reset calculation
+        usage = get_user_usage(user_id, tier, timezone)
+        return {"success": True, "usage": usage, **usage}  # Spread usage for backwards compat
     except Exception as e:
         print(f"Error getting usage: {e}")
         return {"error": str(e)}
@@ -1262,6 +1291,36 @@ async def publish_full(req: FullPublishRequest):
                 "remaining": remaining,
                 "reset_in_seconds": int(reset_time) if reset_time else None
             }
+    
+    # FREE TIER DAILY LIMIT CHECK (10 published posts/day)
+    # This protects users from LinkedIn spam violations
+    if req.user_id and not req.test_mode:
+        user_tier = "free"  # Default
+        user_timezone = "UTC"  # Default
+        
+        if get_user_settings:
+            try:
+                settings = get_user_settings(req.user_id)
+                if settings:
+                    user_tier = settings.get('subscription_tier', 'free')
+                    user_timezone = settings.get('timezone', 'UTC')
+            except Exception:
+                pass
+        
+        if user_tier == "free" and get_user_usage:
+            usage = get_user_usage(req.user_id, tier="free", user_timezone=user_timezone)
+            if usage.get('posts_remaining', 10) <= 0:
+                return {
+                    "error": "Daily limit reached",
+                    "limit_reached": True,
+                    "message": "⚠️ You've published 10 posts today! To protect your LinkedIn account from spam violations, please wait until tomorrow.",
+                    "linkedin_warning": "LinkedIn may flag accounts that post too frequently. This limit helps keep your account safe.",
+                    "posts_today": usage.get('posts_today'),
+                    "posts_limit": usage.get('posts_limit'),
+                    "resets_in_seconds": usage.get('resets_in_seconds'),
+                    "resets_at": usage.get('resets_at'),
+                    "timezone": user_timezone
+                }
     
     # Test mode - just return preview (not rate limited)
     if req.test_mode:

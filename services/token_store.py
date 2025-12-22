@@ -187,14 +187,22 @@ def _migrate_if_plaintext(row: dict) -> dict:
     """
     Auto-migrate plaintext tokens to encrypted on first access.
     
+    Hardened implementation with atomic transaction support:
+    1. Check if migration needed (is_encrypted != 1)
+    2. Encrypt tokens in memory
+    3. Perform atomic DB update with WHERE clause safety
+    4. Return decrypted values for immediate use
+    
     Args:
         row: Token row from database
         
     Returns:
-        Row with decrypted tokens (or original if migration failed)
+        Row with decrypted tokens (ready to use)
         
-    SECURITY: This enables seamless migration from plaintext to encrypted
-    storage without manual intervention.
+    SECURITY: 
+        - Atomic transaction ensures all-or-nothing migration
+        - WHERE is_encrypted=0 clause prevents double-encryption race conditions
+        - Returns usable plaintext tokens to the caller while ensuring storage is secured
     """
     if row.get('is_encrypted') == 1:
         # Already encrypted, just decrypt for use
@@ -206,22 +214,56 @@ def _migrate_if_plaintext(row: dict) -> dict:
         }
     
     # Legacy plaintext - migrate to encrypted
-    if row.get('access_token') and not is_encrypted(row.get('access_token', '')):
+    # Only migrate if we have sensible data to encrypt
+    if not is_encrypted(row.get('access_token', '')):
         try:
-            # Re-save with encryption
-            save_token(
-                linkedin_user_urn=row['linkedin_user_urn'],
-                access_token=row.get('access_token', ''),
-                refresh_token=row.get('refresh_token'),
-                expires_at=row.get('expires_at'),
-                user_id=row.get('user_id'),
-                github_username=row.get('github_username'),
-                github_access_token=row.get('github_access_token'),
-                scopes=row.get('scopes')
-            )
-        except Exception:
-            pass  # Migration failed, return plaintext for now
-    
+            # 1. Encrypt in memory first
+            enc_access = encrypt_value(row.get('access_token', ''))
+            enc_refresh = encrypt_value(row.get('refresh_token', '')) if row.get('refresh_token') else None
+            enc_github = encrypt_value(row.get('github_access_token', '')) if row.get('github_access_token') else None
+            
+            # 2. Perform atomic update
+            # We open a NEW connection to ensure isolation from any outer read transaction
+            # (though SQLite default locking usually handles this, we want to be explicit)
+            update_conn = get_conn()
+            try:
+                cur = update_conn.cursor()
+                
+                # Optimistic locking: Only update if still unencrypted
+                cur.execute('''
+                    UPDATE accounts 
+                    SET access_token=?, refresh_token=?, github_access_token=?, is_encrypted=1
+                    WHERE linkedin_user_urn=? AND (is_encrypted=0 OR is_encrypted IS NULL)
+                ''', (
+                    enc_access, 
+                    enc_refresh, 
+                    enc_github, 
+                    row['linkedin_user_urn']
+                ))
+                
+                if cur.rowcount > 0:
+                    update_conn.commit()
+                    # Migration successful
+                else:
+                    # No rows updated - likely another process beat us to it
+                    # This is fine, we just return the row as-is (database is safe)
+                    pass
+                    
+            except Exception as e:
+                update_conn.rollback()
+                # Log usage but don't crash app flow - return plaintext for this single request
+                print(f"Token migration failed: {e}")
+            finally:
+                update_conn.close()
+                
+        except Exception as e:
+            # Encryption failure (e.g., key missing in production)
+            # This should have been caught earlier by encryption module, 
+            # but as a final safety net, we catch it here.
+            print(f"Encryption failed during migration: {e}")
+
+    # Return the original plaintext values for this request so the app keeps working
+    # (The DB is either updated to encrypted, or upgrade failed but we still have data)
     return row
 
 

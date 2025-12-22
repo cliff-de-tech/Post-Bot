@@ -700,9 +700,20 @@ async def scan_github_activity(req: ScanRequest):
     if not github_username:
         return {"error": "No GitHub username configured", "activities": [], "all_activities": []}
     
+    # Get user's GitHub token if available
+    github_token = None
+    if get_token_by_user_id:
+        try:
+            token_data = get_token_by_user_id(req.user_id)
+            if token_data:
+                github_token = token_data.get('github_access_token')
+        except Exception as e:
+            print(f"Error getting user token: {e}")
+
     try:
-        # Get activities (the service already filters and parses them)
-        activities = get_user_activity(github_username, limit=30)
+        # Get activities (passing user token if available)
+        # This will auto-select private or public endpoint based on token presence
+        activities = get_user_activity(github_username, limit=30, token=github_token)
         
         # Filter to recent hours
         from datetime import datetime, timezone, timedelta

@@ -156,6 +156,25 @@ User settings in `user_settings.db` contain **preferences only**, no secrets.
 
 Generate a key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
 
+### GitHub Integration & Privacy
+
+The app connects to GitHub in two modes:
+
+**1. Public Mode (Default)**
+- **Requires**: Only `github_username`
+- **Access**: Fetches only **public** activity (pushes, PRs, new repos)
+- **Auth**: Uses app-level `GITHUB_TOKEN` (server-side) to increase rate limits
+- **Privacy**: No access to private repositories
+
+**2. Authenticated Mode (Optional)**
+- **Requires**: User-provided Personal Access Token (PAT)
+- **Access**: Fetches **private** and public activity
+- **Auth**: Uses your PAT for requests
+- **Storage**: PAT is **encrypted at rest** and never exposed to frontend
+- **Privacy**: Allows you to generate posts from work/private projects
+
+> **Note**: Your GitHub token is used ONLY for fetching activity to generate posts. It is never shared or used for other purposes.
+
 ---
 
 ## Tech Stack

@@ -1,27 +1,69 @@
 import requests
 import os
+import logging
 from datetime import datetime, timedelta
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
 
 
-def get_user_activity(username: str, limit: int = 10):
-    """Fetch recent GitHub activity for a user"""
+def get_user_activity(username: str, limit: int = 10, token: str = None):
+    """
+    Fetch recent GitHub activity for a user.
+    
+    AUTHENTICATION LOGIC:
+    1. If `token` (User PAT) is provided:
+       - Uses authenticated endpoint: /users/{username}/events
+       - Returns PUBLIC and PRIVATE events (visible to token)
+       - Rate limit: 5000 req/hr
+       
+    2. If NO `token` provided:
+       - Uses public endpoint: /users/{username}/events/public
+       - Returns PUBLIC events only
+       - Uses GITHUB_TOKEN (App Secret) if available for rate limit boost (5000 req/hr)
+       - Otherwise uses unauthenticated IP limit (60 req/hr)
+    """
     try:
-        headers = {}
-        # CREDENTIAL CLASSIFICATION: (A) App-level secret - provides higher GitHub API rate limits
-        github_token = os.getenv('GITHUB_TOKEN')
-        if github_token:
-            headers['Authorization'] = f'token {github_token}'
+        headers = {
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        # Determine endpoint and auth based on token presence
+        if token:
+            # Case 1: User-Authenticated (Private + Public)
+            url = f"{GITHUB_API}/users/{username}/events"
+            headers['Authorization'] = f'token {token}'
+            logger.info(f"Fetching GitHub activity for {username} using USER token")
+        else:
+            # Case 2: Public API (Public only)
+            url = f"{GITHUB_API}/users/{username}/events/public"
+            
+            # Use App-Level token for rate limit boost if user token is missing
+            # Rules: "If github_access_token exists: Use authenticated... If NOT: Use public..."
+            # This is still "Public API" scope, just boosted.
+            app_token = os.getenv('GITHUB_TOKEN')
+            if app_token:
+                headers['Authorization'] = f'token {app_token}'
+                logger.info(f"Fetching GitHub activity for {username} using APP token (public only)")
+            else:
+                logger.info(f"Fetching GitHub activity for {username} UN-AUTHENTICATED (low rate limit)")
         
         # Get user's events
         response = requests.get(
-            f"{GITHUB_API}/users/{username}/events/public",
+            url,
             headers=headers,
             timeout=10
         )
         
+        # Rate Limit handling
+        if response.status_code == 403:
+            logger.warning(f"GitHub API Rate Limit Exceeded for {username}. Headers: {response.headers}")
+            return []
+            
         if response.status_code != 200:
+            logger.error(f"GitHub API Error {response.status_code}: {response.text}")
             return []
         
         events = response.json()[:limit]
@@ -34,7 +76,7 @@ def get_user_activity(username: str, limit: int = 10):
         
         return activities
     except Exception as e:
-        print(f"Error fetching GitHub activity: {e}")
+        logger.error(f"Error fetching GitHub activity: {e}")
         return []
 
 
@@ -189,13 +231,19 @@ def parse_event(event):
     return None
 
 
-def get_repo_details(repo_full_name: str):
+def get_repo_details(repo_full_name: str, token: str = None):
     """Get repository details"""
     try:
-        headers = {}
-        github_token = os.getenv('GITHUB_TOKEN')
-        if github_token:
-            headers['Authorization'] = f'token {github_token}'
+        headers = {
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        if token:
+            headers['Authorization'] = f'token {token}'
+        else:
+            app_token = os.getenv('GITHUB_TOKEN')
+            if app_token:
+                headers['Authorization'] = f'token {app_token}'
         
         response = requests.get(
             f"{GITHUB_API}/repos/{repo_full_name}",
@@ -213,6 +261,6 @@ def get_repo_details(repo_full_name: str):
                 'url': data.get('html_url')
             }
     except Exception as e:
-        print(f"Error fetching repo details: {e}")
+        logger.error(f"Error fetching repo details: {e}")
     
     return None

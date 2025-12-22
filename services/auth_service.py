@@ -76,7 +76,7 @@ def get_authorize_url(redirect_uri: str, state: str) -> str:
     return f"https://www.linkedin.com/oauth/v2/authorization?{q}"
 
 
-def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
+def exchange_code_for_token(code: str, redirect_uri: str, user_id: str = None) -> dict:
     """
     Exchange authorization code for access token (OAuth Step 2).
     
@@ -86,6 +86,7 @@ def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
     Args:
         code: Authorization code from LinkedIn callback
         redirect_uri: Must match the redirect_uri used in authorization
+        user_id: Clerk user ID for multi-tenant isolation
         
     Returns:
         Dict containing linkedin_user_urn, access_token, and expires_at
@@ -140,9 +141,9 @@ def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
     # Calculate absolute expiration timestamp
     expires_at = int(time.time()) + int(expires_in) if expires_in else None
     
-    # Store token securely
+    # Store token securely WITH user_id for multi-tenant isolation
     # SECURITY: Token is stored in SQLite; access is via parameterized queries
-    save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=expires_at)
+    save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=expires_at, user_id=user_id)
 
     return {
         'linkedin_user_urn': linkedin_user_urn,

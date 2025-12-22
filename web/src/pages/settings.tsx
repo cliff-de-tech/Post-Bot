@@ -53,7 +53,10 @@ export default function Settings() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  // Handle OAuth callbacks
+  // State to trigger refresh after OAuth callback
+  const [shouldRefresh, setShouldRefresh] = useState(false);
+
+  // Handle OAuth callbacks - set flags for refresh
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
 
@@ -61,7 +64,7 @@ export default function Settings() {
     const githubSuccess = urlParams.get('github_success');
     if (githubSuccess === 'true') {
       showToast.success('GitHub connected! Private repos now accessible.');
-      loadConnectionStatus();
+      setShouldRefresh(true);
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (githubSuccess === 'false') {
       const error = urlParams.get('error') || 'Unknown error';
@@ -71,21 +74,25 @@ export default function Settings() {
 
     // Handle LinkedIn OAuth callback
     const linkedinSuccess = urlParams.get('linkedin_success');
+    const linkedinUrn = urlParams.get('linkedin_urn');
+    const linkedinError = urlParams.get('error');
+
     if (linkedinSuccess === 'true') {
+      if (linkedinUrn) {
+        localStorage.setItem('linkedin_user_urn', linkedinUrn);
+      }
       showToast.success('LinkedIn connected!');
-      loadConnectionStatus();
+      setShouldRefresh(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (linkedinSuccess === 'false') {
+      showToast.error(`LinkedIn connection failed: ${linkedinError || 'Unknown error'}`);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  // Load connection status
-  useEffect(() => {
-    if (!isLoaded || !userId) return;
-    setMounted(true);
-    loadConnectionStatus();
-  }, [isLoaded, userId]);
-
+  // Load connection status function
   const loadConnectionStatus = async () => {
+    if (!userId) return;
     setLoading(true);
     try {
       const response = await axios.get(`${API_BASE}/api/connection-status/${userId}`);
@@ -107,6 +114,13 @@ export default function Settings() {
     }
   };
 
+  // Load connection status on mount and when shouldRefresh changes
+  useEffect(() => {
+    if (!isLoaded || !userId) return;
+    setMounted(true);
+    loadConnectionStatus();
+  }, [isLoaded, userId, shouldRefresh]);
+
   // LinkedIn OAuth
   const handleConnectLinkedIn = async () => {
     if (!userId) {
@@ -118,7 +132,8 @@ export default function Settings() {
     try {
       await axios.get(`${API_BASE}/health`, { timeout: 2000 });
       showToast.dismiss(toastId);
-      const redirectUri = `${window.location.origin}/settings?linkedin_success=true`;
+      // LinkedIn requires exact match of registered redirect_uri (no query params)
+      const redirectUri = `${window.location.origin}/settings`;
       window.location.href = `${API_BASE}/auth/linkedin/start?redirect_uri=${encodeURIComponent(redirectUri)}&user_id=${encodeURIComponent(userId)}`;
     } catch (error) {
       showToast.dismiss(toastId);

@@ -51,9 +51,15 @@ except ImportError:
 
 # Import User Settings service
 try:
-    from services.user_settings import get_user_settings, get_token_by_user_id
+    from services.user_settings import get_user_settings, save_user_settings
 except ImportError:
     get_user_settings = None
+    save_user_settings = None
+
+# Import token functions
+try:
+    from services.token_store import get_token_by_user_id
+except ImportError:
     get_token_by_user_id = None
 
 # Import Post History service
@@ -207,6 +213,11 @@ class PostRequest(BaseModel):
     context: dict
     test_mode: Optional[bool] = True
     user_id: Optional[str] = None
+
+
+class DisconnectRequest(BaseModel):
+    """Request model for disconnect endpoints."""
+    user_id: str
 
 
 @app.get("/health")
@@ -372,9 +383,17 @@ def linkedin_start(redirect_uri: str, user_id: str = None):
 
 @app.get('/auth/linkedin/callback')
 def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = None):
-    """Exchange code for token and store it. Returns a small status JSON."""
-    if not code or not redirect_uri:
-        return {"error": "missing code or redirect_uri"}
+    """
+    Exchange code for token and redirect back to frontend.
+    
+    Redirects to: {redirect_uri}?linkedin_success=true&linkedin_urn=...
+    Or on error: {redirect_uri}?linkedin_success=false&error=...
+    """
+    # Default redirect if none provided
+    frontend_redirect = redirect_uri or "http://localhost:3000/settings"
+    
+    if not code:
+        return RedirectResponse(f"{frontend_redirect}?linkedin_success=false&error=missing_code")
     
     # Check if state contains user_id (format: "user_id:random_state")
     user_id = None
@@ -384,6 +403,8 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
             user_id = parts[0]
     
     try:
+        result = None
+        
         # Use per-user credentials if we have a user_id
         if user_id and get_user_settings and exchange_code_for_token_with_user:
             settings = get_user_settings(user_id)
@@ -399,18 +420,23 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
                 if save_user_settings:
                     settings['linkedin_user_urn'] = result.get('linkedin_user_urn')
                     save_user_settings(user_id, settings)
-                return {"status": "success", "linkedin_user_urn": result.get("linkedin_user_urn")}
         
         # Fallback to global credentials
-        if not exchange_code_for_token:
-            return {"error": "OAuth service not available"}
-        result = exchange_code_for_token(code, redirect_uri)
-        return {"status": "success", "linkedin_user_urn": result.get("linkedin_user_urn")}
+        if not result:
+            if not exchange_code_for_token:
+                return RedirectResponse(f"{frontend_redirect}?linkedin_success=false&error=oauth_not_available")
+            # Pass user_id for multi-tenant token storage
+            result = exchange_code_for_token(code, redirect_uri, user_id)
+        
+        linkedin_urn = result.get("linkedin_user_urn", "")
+        return RedirectResponse(f"{frontend_redirect}?linkedin_success=true&linkedin_urn={linkedin_urn}")
+        
     except Exception as e:
         import traceback
         print(f"OAuth Error: {e}")
         print(traceback.format_exc())
-        return {"error": str(e), "status": "failed"}
+        error_msg = str(e).replace(" ", "_")[:50]  # Sanitize for URL
+        return RedirectResponse(f"{frontend_redirect}?linkedin_success=false&error={error_msg}")
 
 
 # GitHub OAuth configuration

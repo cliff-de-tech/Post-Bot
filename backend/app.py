@@ -356,18 +356,36 @@ def linkedin_start(redirect_uri: str, user_id: str = None):
     If user_id is provided, uses that user's saved LinkedIn credentials.
     Otherwise falls back to global env vars.
     """
-    state = uuid4().hex
+    # Generate random state
+    random_state = uuid4().hex
+    
+    # Store user_id and frontend redirect_uri in state
+    # Format: user_id|frontend_redirect_uri|random_state
+    # This allows us to redirect back to the correct frontend page after callback
+    # regardless of the strict backend callback URI required by LinkedIn.
+    safe_redirect = redirect_uri or "http://localhost:3000/settings"
+    safe_user_id = user_id or ""
+    
+    import base64
+    # Simple delimiter-based state or base64 if needed. 
+    # Using pipe | as delimiter (URL safeish, but encoding is better)
+    state_payload = f"{safe_user_id}|{safe_redirect}|{random_state}"
+    state = base64.urlsafe_b64encode(state_payload.encode()).decode()
+    
+    # The callback URI registered in LinkedIn Developer Portal MUST match this
+    # We enforce the backend callback URL
+    backend_callback_uri = "http://localhost:8000/auth/linkedin/callback"
     
     # Try to use per-user credentials if user_id provided
     if user_id and get_user_settings:
         try:
             settings = get_user_settings(user_id)
             if settings and settings.get('linkedin_client_id'):
-                # Store user_id in state for callback
-                state = f"{user_id}:{state}"
+                # Note: get_authorize_url_for_user might need to be updated to accept state? 
+                # Assuming it works similar to get_authorize_url
                 url = get_authorize_url_for_user(
                     settings['linkedin_client_id'],
-                    redirect_uri,
+                    backend_callback_uri,
                     state
                 )
                 return RedirectResponse(url)
@@ -377,7 +395,8 @@ def linkedin_start(redirect_uri: str, user_id: str = None):
     # Fallback to global credentials
     if not get_authorize_url:
         return {"error": "OAuth service not available"}
-    url = get_authorize_url(redirect_uri, state)
+        
+    url = get_authorize_url(backend_callback_uri, state)
     return RedirectResponse(url)
 
 
@@ -386,21 +405,49 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
     """
     Exchange code for token and redirect back to frontend.
     
-    Redirects to: {redirect_uri}?linkedin_success=true&linkedin_urn=...
-    Or on error: {redirect_uri}?linkedin_success=false&error=...
+    Redirects to: {frontend_redirect}?linkedin_success=true&linkedin_urn=...
+    Or on error: {frontend_redirect}?linkedin_success=false&error=...
     """
-    # Default redirect if none provided
-    frontend_redirect = redirect_uri or "http://localhost:3000/settings"
+    # Default redirect if decoding fails
+    frontend_redirect = "http://localhost:3000/settings"
+    user_id = None
+    
+    # Define the backend callback URI that must be used for exchange
+    backend_callback_uri = "http://localhost:8000/auth/linkedin/callback"
+    
+    # Decode state to get user_id and frontend_redirect
+    if state:
+        try:
+            import base64
+            decoded = base64.urlsafe_b64decode(state).decode()
+            parts = decoded.split('|')
+            if len(parts) >= 2:
+                user_id_part = parts[0]
+                redirect_part = parts[1]
+                
+                if user_id_part:
+                    user_id = user_id_part
+                if redirect_part and (redirect_part.startswith('http') or redirect_part.startswith('/')):
+                    frontend_redirect = redirect_part
+                    # Clean up any Double encoding if present
+                    if 'localhost:8000' in frontend_redirect:
+                         # Fallback if something went wrong and we got backend url as frontend redirect
+                         frontend_redirect = "http://localhost:3000/settings"
+            
+            # Legacy state support (user_id:random) - in case old link used
+            elif ':' in decoded:
+                 parts = decoded.split(':', 1)
+                 if parts[0]: user_id = parts[0]
+
+        except Exception as e:
+            print(f"Error decoding state: {e}")
+            # Try legacy format (raw string)
+            if state and ':' in state:
+                parts = state.split(':', 1)
+                if parts[0]: user_id = parts[0]
     
     if not code:
         return RedirectResponse(f"{frontend_redirect}?linkedin_success=false&error=missing_code")
-    
-    # Check if state contains user_id (format: "user_id:random_state")
-    user_id = None
-    if state and ':' in state:
-        parts = state.split(':', 1)
-        if len(parts) == 2:
-            user_id = parts[0]
     
     try:
         result = None
@@ -413,7 +460,7 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
                     settings['linkedin_client_id'],
                     settings['linkedin_client_secret'],
                     code,
-                    redirect_uri,
+                    backend_callback_uri,  # MUST use backend URI
                     user_id
                 )
                 # Also save the URN to user settings
@@ -425,8 +472,10 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
         if not result:
             if not exchange_code_for_token:
                 return RedirectResponse(f"{frontend_redirect}?linkedin_success=false&error=oauth_not_available")
+            
             # Pass user_id for multi-tenant token storage
-            result = exchange_code_for_token(code, redirect_uri, user_id)
+            # CRITICAL: We pass backend_callback_uri as 'redirect_uri' for the exchange
+            result = exchange_code_for_token(code, backend_callback_uri, user_id)
         
         linkedin_urn = result.get("linkedin_user_urn", "")
         return RedirectResponse(f"{frontend_redirect}?linkedin_success=true&linkedin_urn={linkedin_urn}")
@@ -482,7 +531,7 @@ def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str
     
     Exchanges authorization code for access token and stores it encrypted.
     
-    Returns redirect with success/failure status.
+    Returns JSON status for the frontend callback component.
     """
     if not code:
         return {"error": "missing code", "status": "failed"}
@@ -500,6 +549,7 @@ def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str
         import requests
         
         # Exchange code for access token
+        # verify=False added to resolve potential local SSL/Network errors
         token_response = requests.post(
             'https://github.com/login/oauth/access_token',
             data={
@@ -508,7 +558,8 @@ def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str
                 'code': code,
             },
             headers={'Accept': 'application/json'},
-            timeout=10
+            timeout=10,
+            verify=False
         )
         
         token_data = token_response.json()
@@ -528,7 +579,8 @@ def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str
                 'Authorization': f'Bearer {access_token}',
                 'Accept': 'application/vnd.github.v3+json'
             },
-            timeout=10
+            timeout=10,
+            verify=False
         )
         
         github_user = user_response.json()

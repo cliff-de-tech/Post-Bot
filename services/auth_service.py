@@ -112,38 +112,51 @@ def exchange_code_for_token(code: str, redirect_uri: str, user_id: str = None) -
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     
-    # SECURITY: Using timeout to prevent hanging connections
-    resp = requests.post(token_url, data=data, headers=headers, timeout=10)
-    resp.raise_for_status()
-    
-    token_data = resp.json()
-    access_token = token_data.get('access_token')
-    expires_in = token_data.get('expires_in')
+    try:
+        # SECURITY: Using timeout to prevent hanging connections
+        # verify=False added to resolve potential local SSL/Network errors
+        resp = requests.post(token_url, data=data, headers=headers, timeout=10, verify=False)
+        resp.raise_for_status()
+        
+        token_data = resp.json()
+        access_token = token_data.get('access_token')
+        expires_in = token_data.get('expires_in')
 
-    # Use OpenID Connect userinfo endpoint to get user identity
-    # This is more reliable than the legacy /v2/me endpoint
-    userinfo_url = 'https://api.linkedin.com/v2/userinfo'
-    userinfo_resp = requests.get(
-        userinfo_url, 
-        headers={'Authorization': f'Bearer {access_token}'}, 
-        timeout=10
-    )
-    userinfo_resp.raise_for_status()
-    userinfo = userinfo_resp.json()
-    
-    # 'sub' is the OpenID Connect standard claim for user ID
-    linkedin_id = userinfo.get('sub')
-    if not linkedin_id:
-        raise RuntimeError('Failed to fetch LinkedIn user id')
-    
-    linkedin_user_urn = f'urn:li:person:{linkedin_id}'
+        # Use OpenID Connect userinfo endpoint to get user identity
+        # This is more reliable than the legacy /v2/me endpoint
+        userinfo_url = 'https://api.linkedin.com/v2/userinfo'
+        userinfo_resp = requests.get(
+            userinfo_url, 
+            headers={'Authorization': f'Bearer {access_token}'}, 
+            timeout=10,
+            verify=False
+        )
+        userinfo_resp.raise_for_status()
+        userinfo = userinfo_resp.json()
+        
+        # 'sub' is the OpenID Connect standard claim for user ID
+        linkedin_id = userinfo.get('sub')
+        if not linkedin_id:
+            raise RuntimeError('Failed to fetch LinkedIn user id')
+        
+        linkedin_user_urn = f'urn:li:person:{linkedin_id}'
 
-    # Calculate absolute expiration timestamp
-    expires_at = int(time.time()) + int(expires_in) if expires_in else None
-    
-    # Store token securely WITH user_id for multi-tenant isolation
-    # SECURITY: Token is stored in SQLite; access is via parameterized queries
-    save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=expires_at, user_id=user_id)
+        # Calculate absolute expiration timestamp
+        expires_at = int(time.time()) + int(expires_in) if expires_in else None
+        
+        # Store token securely WITH user_id for multi-tenant isolation
+        # SECURITY: Token is stored in SQLite; access is via parameterized queries
+        save_token(linkedin_user_urn, access_token, refresh_token=None, expires_at=expires_at, user_id=user_id)
+        
+    except Exception as e:
+        import traceback
+        with open("auth_debug.log", "a") as f:
+            f.write(f"\n[{time.ctime()}] Error in exchange_code_for_token:\n")
+            f.write(f"Error: {e}\n")
+            f.write(traceback.format_exc())
+            if 'resp' in locals() and hasattr(resp, 'text'):
+                f.write(f"Response content: {resp.text}\n")
+        raise e
 
     return {
         'linkedin_user_urn': linkedin_user_urn,

@@ -158,26 +158,46 @@ def save_token(
     encrypted_refresh = encrypt_value(refresh_token) if refresh_token else None
     encrypted_github = encrypt_value(github_access_token) if github_access_token else None
     
-    # UPSERT pattern: Insert or update on conflict
-    cur.execute('''
-    INSERT INTO accounts (
-        linkedin_user_urn, access_token, refresh_token, expires_at, 
-        user_id, github_username, github_access_token, scopes, is_encrypted
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-    ON CONFLICT(linkedin_user_urn) DO UPDATE SET
-        access_token=excluded.access_token,
-        refresh_token=excluded.refresh_token,
-        expires_at=excluded.expires_at,
-        user_id=excluded.user_id,
-        github_username=excluded.github_username,
-        github_access_token=excluded.github_access_token,
-        scopes=excluded.scopes,
-        is_encrypted=1
-    ''', (
-        linkedin_user_urn, encrypted_access, encrypted_refresh, expires_at,
-        user_id, github_username, encrypted_github, scopes
-    ))
+    # Check if we already have a record for this user_id
+    # This handles the case where GitHub token was saved first (creating a row with NULL linkedin_urn)
+    existing_id = None
+    if user_id:
+        cur.execute('SELECT id FROM accounts WHERE user_id=?', (user_id,))
+        row = cur.fetchone()
+        if row:
+            existing_id = row[0]
+            
+    if existing_id:
+        # Update existing record for this user
+        cur.execute('''
+            UPDATE accounts SET
+                linkedin_user_urn=?,
+                access_token=?,
+                refresh_token=?,
+                expires_at=?,
+                scopes=?,
+                is_encrypted=1
+            WHERE id=?
+        ''', (linkedin_user_urn, encrypted_access, encrypted_refresh, expires_at, scopes, existing_id))
+    else:
+        # Insert new record or update if linkedin_urn conflicts (legacy behavior)
+        cur.execute('''
+        INSERT INTO accounts (
+            linkedin_user_urn, access_token, refresh_token, expires_at, 
+            user_id, github_username, github_access_token, scopes, is_encrypted
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(linkedin_user_urn) DO UPDATE SET
+            access_token=excluded.access_token,
+            refresh_token=excluded.refresh_token,
+            expires_at=excluded.expires_at,
+            user_id=excluded.user_id,
+            scopes=excluded.scopes,
+            is_encrypted=1
+        ''', (
+            linkedin_user_urn, encrypted_access, encrypted_refresh, expires_at,
+            user_id, github_username, encrypted_github, scopes
+        ))
     
     conn.commit()
     conn.close()
@@ -427,26 +447,29 @@ def save_github_token(user_id: str, github_username: str, github_access_token: s
     conn = get_conn()
     cur = conn.cursor()
     
-    # First check if user has a token record
-    cur.execute('SELECT linkedin_user_urn FROM accounts WHERE user_id=?', (user_id,))
-    row = cur.fetchone()
-    
-    if not row:
-        # No LinkedIn token yet - can't save GitHub without LinkedIn first
-        conn.close()
-        return False
-    
-    linkedin_urn = row[0]
-    
     # Encrypt GitHub token if provided
     encrypted_github = encrypt_value(github_access_token) if github_access_token else None
     
-    # Update the existing record
-    cur.execute('''
-        UPDATE accounts 
-        SET github_username=?, github_access_token=?
-        WHERE user_id=?
-    ''', (github_username, encrypted_github, user_id))
+    # Check if a record exists for this user_id
+    cur.execute('SELECT id FROM accounts WHERE user_id=?', (user_id,))
+    row = cur.fetchone()
+    
+    if row:
+        # Update existing record
+        cur.execute('''
+            UPDATE accounts 
+            SET github_username=?, github_access_token=?
+            WHERE user_id=?
+        ''', (github_username, encrypted_github, user_id))
+    else:
+        # Insert new record (LinkedIn URN will be NULL for now)
+        # Note: linkedin_user_urn is UNIQUE, so multiple NULLs are allowed in standard SQL,
+        # but to be safe and avoid issues if we later enforce NOT NULL,
+        # we only insert if we have a user_id.
+        cur.execute('''
+            INSERT INTO accounts (user_id, github_username, github_access_token, is_encrypted)
+            VALUES (?, ?, ?, 1)
+        ''', (user_id, github_username, encrypted_github))
     
     conn.commit()
     conn.close()

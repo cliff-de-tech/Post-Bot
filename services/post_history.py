@@ -166,3 +166,156 @@ def get_user_stats(user_id: str):
         'posts_this_month': posts_this_month,
         'draft_posts': total_posts - published_posts
     }
+
+
+# =============================================================================
+# FREE TIER USAGE TRACKING
+# =============================================================================
+
+# Free tier limits
+FREE_TIER_DAILY_POSTS = 10
+FREE_TIER_SCHEDULED_POSTS = 10
+
+
+def get_daily_post_count(user_id: str) -> int:
+    """
+    Count posts created by user today (UTC).
+    Used for enforcing daily post generation limit.
+    """
+    init_db()
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    # Get start of today (UTC midnight)
+    import datetime
+    today_start = int(datetime.datetime.utcnow().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).timestamp())
+    
+    cur.execute('''
+    SELECT COUNT(*) FROM post_history 
+    WHERE user_id=? AND created_at >= ?
+    ''', (user_id, today_start))
+    
+    count = cur.fetchone()[0]
+    conn.close()
+    return count
+
+
+def get_scheduled_post_count(user_id: str) -> int:
+    """
+    Count pending scheduled posts for user.
+    Free tier is limited to 10 scheduled posts.
+    """
+    # Note: This queries the scheduled_posts table, not post_history
+    # Scheduled posts are managed separately
+    try:
+        scheduled_db_path = os.getenv('SCHEDULED_POSTS_DB_PATH', 
+                                       os.path.join(os.path.dirname(__file__), '..', 'scheduled_posts.db'))
+        conn = sqlite3.connect(scheduled_db_path)
+        cur = conn.cursor()
+        
+        cur.execute('''
+        SELECT COUNT(*) FROM scheduled_posts 
+        WHERE user_id=? AND status='pending'
+        ''', (user_id,))
+        
+        count = cur.fetchone()[0]
+        conn.close()
+        return count
+    except Exception:
+        # If scheduled_posts table doesn't exist yet, return 0
+        return 0
+
+
+def get_user_usage(user_id: str, tier: str = "free") -> dict:
+    """
+    Get comprehensive usage data for a user.
+    Returns current usage counts, limits, and reset time.
+    """
+    import datetime
+    
+    posts_today = get_daily_post_count(user_id)
+    scheduled_count = get_scheduled_post_count(user_id)
+    
+    # Calculate time until reset (next UTC midnight)
+    now = datetime.datetime.utcnow()
+    tomorrow = (now + datetime.timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    seconds_until_reset = int((tomorrow - now).total_seconds())
+    
+    if tier == "free":
+        return {
+            "tier": "free",
+            "posts_today": posts_today,
+            "posts_limit": FREE_TIER_DAILY_POSTS,
+            "posts_remaining": max(0, FREE_TIER_DAILY_POSTS - posts_today),
+            "scheduled_count": scheduled_count,
+            "scheduled_limit": FREE_TIER_SCHEDULED_POSTS,
+            "scheduled_remaining": max(0, FREE_TIER_SCHEDULED_POSTS - scheduled_count),
+            "resets_in_seconds": seconds_until_reset,
+            "resets_at": tomorrow.isoformat() + "Z"
+        }
+    else:
+        # Pro/Team tiers have unlimited usage
+        return {
+            "tier": tier,
+            "posts_today": posts_today,
+            "posts_limit": -1,  # -1 = unlimited
+            "posts_remaining": -1,
+            "scheduled_count": scheduled_count,
+            "scheduled_limit": -1,
+            "scheduled_remaining": -1,
+            "resets_in_seconds": 0,
+            "resets_at": None
+        }
+
+
+def can_user_generate_posts(user_id: str, count: int = 1, tier: str = "free") -> dict:
+    """
+    Check if user can generate more posts.
+    Returns { allowed: bool, reason: str, remaining: int }
+    """
+    if tier != "free":
+        return {"allowed": True, "reason": None, "remaining": -1}
+    
+    posts_today = get_daily_post_count(user_id)
+    remaining = FREE_TIER_DAILY_POSTS - posts_today
+    
+    if remaining <= 0:
+        return {
+            "allowed": False,
+            "reason": f"Daily limit reached. You've used all {FREE_TIER_DAILY_POSTS} posts today.",
+            "remaining": 0
+        }
+    
+    if count > remaining:
+        return {
+            "allowed": False,
+            "reason": f"You can only generate {remaining} more post(s) today.",
+            "remaining": remaining
+        }
+    
+    return {"allowed": True, "reason": None, "remaining": remaining}
+
+
+def can_user_schedule_post(user_id: str, tier: str = "free") -> dict:
+    """
+    Check if user can schedule another post.
+    Free tier limited to 10 scheduled posts.
+    """
+    if tier != "free":
+        return {"allowed": True, "reason": None, "remaining": -1}
+    
+    scheduled_count = get_scheduled_post_count(user_id)
+    remaining = FREE_TIER_SCHEDULED_POSTS - scheduled_count
+    
+    if remaining <= 0:
+        return {
+            "allowed": False,
+            "reason": f"Scheduled posts limit reached. Free tier allows {FREE_TIER_SCHEDULED_POSTS} scheduled posts.",
+            "remaining": 0
+        }
+    
+    return {"allowed": True, "reason": None, "remaining": remaining}

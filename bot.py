@@ -18,6 +18,16 @@ except ImportError:
 # --- CONFIGURATION (Load from environment variables for security) ---
 # For local testing: create a .env file or set these manually
 # For GitHub Actions: secrets are automatically injected
+#
+# CREDENTIAL CLASSIFICATION (CLI Bot Mode):
+# - LINKEDIN_ACCESS_TOKEN: (A) App-level secret - single-user CLI mode only
+# - LINKEDIN_USER_URN: (A) App-level - single-user CLI mode only
+# - GITHUB_USERNAME/TOKEN: (A) App-level - defaults for CLI, overridden by user settings in web
+# - GROQ_API_KEY: (A) App-level - falls back if no per-user key provided
+# - UNSPLASH_ACCESS_KEY: (A) App-level - optional image service
+#
+# NOTE: Web app uses per-user tokens stored in SQLite databases. These env vars
+# are primarily for standalone CLI bot operation or as fallbacks.
 LINKEDIN_ACCESS_TOKEN = os.getenv('LINKEDIN_ACCESS_TOKEN', '')
 LINKEDIN_USER_URN = os.getenv('LINKEDIN_USER_URN', '')
 GITHUB_USERNAME = os.getenv('MY_GITHUB_USERNAME') or os.getenv('GITHUB_USERNAME') or 'cliff-de-tech'

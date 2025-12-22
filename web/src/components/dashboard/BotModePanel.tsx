@@ -50,6 +50,8 @@ interface UnsplashImage {
 
 interface BotModePanelProps {
     userId: string;
+    postsRemaining?: number;
+    tier?: string;
 }
 
 
@@ -63,17 +65,18 @@ const ACTIVITY_TYPES = [
     { value: 'generic', label: 'Generic Post', icon: '📄' }
 ];
 
-// Template options
+// Template options with free tier info
 const TEMPLATE_OPTIONS = [
-    { value: 'standard', label: 'Standard Update', icon: '📝' },
-    { value: 'build_in_public', label: 'Build in Public', icon: '🔨' },
-    { value: 'thought_leadership', label: 'Thought Leadership', icon: '💡' },
-    { value: 'job_search', label: 'Job Search / Portfolio', icon: '💼' }
+    { value: 'standard', label: 'Standard Update', icon: '📝', freeAvailable: true },
+    { value: 'build_in_public', label: 'Build in Public', icon: '🔨', freeAvailable: false },
+    { value: 'thought_leadership', label: 'Thought Leadership', icon: '💡', freeAvailable: false },
+    { value: 'job_search', label: 'Job Search / Portfolio', icon: '💼', freeAvailable: false }
 ];
 
 const DAY_OPTIONS = [1, 3, 7, 14, 30];
 
-export function BotModePanel({ userId }: BotModePanelProps) {
+export function BotModePanel({ userId, postsRemaining = 10, tier = 'free' }: BotModePanelProps) {
+
     // State
     const [activities, setActivities] = useState<Activity[]>([]);
     const [posts, setPosts] = useState<Post[]>([]);
@@ -387,19 +390,34 @@ export function BotModePanel({ userId }: BotModePanelProps) {
 
                         {/* Post Template */}
                         <div className="flex flex-col items-start">
-                            <label className="text-xs text-blue-600 dark:text-blue-400 mb-1 ml-1 font-medium">Post Style</label>
+                            <label className="text-xs text-blue-600 dark:text-blue-400 mb-1 ml-1 font-medium">
+                                Post Style
+                                {tier === 'free' && <span className="ml-1 text-gray-400">(Free: Standard only)</span>}
+                            </label>
                             <select
                                 value={selectedTemplate}
-                                onChange={(e) => setSelectedTemplate(e.target.value)}
+                                onChange={(e) => {
+                                    const template = TEMPLATE_OPTIONS.find(t => t.value === e.target.value);
+                                    if (tier === 'free' && !template?.freeAvailable) {
+                                        showToast.error('This template is available in Pro tier - Coming Soon!');
+                                        return;
+                                    }
+                                    setSelectedTemplate(e.target.value);
+                                }}
                                 className="px-4 py-2.5 bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-xl text-blue-700 dark:text-blue-300 focus:ring-2 focus:ring-blue-500 min-w-[200px] font-medium"
                             >
                                 {TEMPLATE_OPTIONS.map(template => (
-                                    <option key={template.value} value={template.value}>
-                                        {template.icon} {template.label}
+                                    <option
+                                        key={template.value}
+                                        value={template.value}
+                                        disabled={tier === 'free' && !template.freeAvailable}
+                                    >
+                                        {template.icon} {template.label} {tier === 'free' && !template.freeAvailable ? '🔒 Pro' : ''}
                                     </option>
                                 ))}
                             </select>
                         </div>
+
                     </div>
 
                     <button

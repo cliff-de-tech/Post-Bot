@@ -10,23 +10,53 @@ import { StatsOverview } from '@/components/dashboard/StatsOverview';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import { PostEditor } from '@/components/dashboard/PostEditor';
 import { PostPreview } from '@/components/dashboard/PostPreview';
-import { PostHistory } from '@/components/dashboard/PostHistory';
+import { PostHistory, Post } from '@/components/dashboard/PostHistory';
 import Analytics from '@/components/dashboard/Analytics';
 import ScheduleModal from '@/components/dashboard/ScheduleModal';
 import TemplateLibrary from '@/components/dashboard/TemplateLibrary';
 import { BotModePanel } from '@/components/dashboard/BotModePanel';
-import { GitHubActivity, Post, Template, PostContext } from '@/types/dashboard';
+import { GitHubActivity, Template, PostContext } from '@/types/dashboard';
+import UsageCounter from '@/components/ui/UsageCounter';
+import FeatureGate from '@/components/ui/FeatureGate';
+import TierBadge from '@/components/ui/TierBadge';
+import WaitlistModal from '@/components/ui/WaitlistModal';
+import HistoryModal from '@/components/ui/HistoryModal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Usage data type
+interface UsageData {
+  tier: string;
+  posts_today: number;
+  posts_limit: number;
+  posts_remaining: number;
+  scheduled_count: number;
+  scheduled_limit: number;
+  scheduled_remaining: number;
+  resets_in_seconds: number;
+  resets_at: string | null;
+}
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
-  const userId = user?.id || '';
+
+  // DEV TEST MODE (DISABLED): To enable, change isTestMode to: router.isReady && router.query.test === 'true'
+  // const isTestMode = router.isReady && router.query.test === 'true';
+  const isTestMode = false;
+
+  const testUserId = 'test_user_dev';
+
+  const userId = isTestMode ? testUserId : (user?.id || '');
+
+
   const [githubUsername, setGithubUsername] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Usage tracking for free tier
+  const [usage, setUsage] = useState<UsageData | null>(null);
 
   // State
   const [context, setContext] = useState<PostContext>({
@@ -53,26 +83,42 @@ export default function Dashboard() {
   });
   const [loadingData, setLoadingData] = useState(true);
 
+
   // Modals
   const [showHistory, setShowHistory] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
 
-  // Redirect if not signed in
+  // DEV TEST MODE: Skip auth and load directly
   useEffect(() => {
+    if (!router.isReady) return; // Wait for router to be ready
+
+    if (isTestMode) {
+      console.log('🧪 DEV TEST MODE: Bypassing auth');
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      setGithubUsername('test-user'); // Mock GitHub username
+      loadDashboardData(testUserId);
+      return;
+    }
+
+    // Normal auth flow
     if (isLoaded && !isSignedIn) {
       router.push('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [router.isReady, isTestMode, isLoaded, isSignedIn]);
 
   useEffect(() => {
+    if (isTestMode || !router.isReady) return; // Skip in test mode or if router not ready
     if (!isLoaded || !userId) return;
 
     // Check authentication status
     checkAuthentication(userId);
-  }, [isLoaded, userId]);
+  }, [isLoaded, userId, isTestMode, router.isReady]);
+
 
   const checkAuthentication = async (uid: string) => {
     try {
@@ -122,12 +168,25 @@ export default function Dashboard() {
         loadUserSettings(uid),
         loadStats(uid),
         loadPostHistory(uid),
-        loadTemplates()
+        loadTemplates(),
+        loadUsage(uid)
       ]);
     } finally {
       setLoadingData(false);
     }
   };
+
+  const loadUsage = async (uid: string) => {
+    try {
+      const response = await axios.get(`${API_BASE}/api/usage/${uid}`);
+      if (response.data?.success && response.data?.usage) {
+        setUsage(response.data.usage);
+      }
+    } catch (error) {
+      console.error('Error loading usage:', error);
+    }
+  };
+
 
   useEffect(() => {
     if (githubUsername && isAuthenticated) {
@@ -243,12 +302,12 @@ export default function Dashboard() {
   };
 
   const handleActivityClick = (activity: GitHubActivity) => {
-    setContext(activity.context);
+    setContext(activity.context as PostContext);
     showToast.success(`📝 Loaded context from: ${activity.title}`);
   };
 
   const handleTemplateClick = (template: Template) => {
-    setContext({ ...context, ...template.context });
+    setContext({ ...context, type: template.id });
     setShowTemplates(false);
     showToast.success(`${template.icon} Template applied: ${template.name}`);
   };
@@ -315,7 +374,8 @@ export default function Dashboard() {
                 </svg>
                 Settings
               </button>
-              <div className="ml-2 border-l border-gray-200 dark:border-white/10 pl-3">
+              <div className="ml-2 border-l border-gray-200 dark:border-white/10 pl-3 flex items-center gap-2">
+                <TierBadge tier={usage?.tier || 'free'} onClick={() => setShowWaitlist(true)} />
                 <ThemeToggle />
               </div>
             </nav>
@@ -332,17 +392,9 @@ export default function Dashboard() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => setShowTemplates(!showTemplates)}
-              className="px-4 py-2 bg-white dark:bg-white/5 border-2 border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-all flex items-center"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-              </svg>
-              Templates
-            </button>
-            <button
               onClick={() => setShowHistory(!showHistory)}
               className="px-4 py-2 bg-white dark:bg-white/5 border-2 border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all flex items-center"
+              aria-label="View post history"
             >
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -352,12 +404,24 @@ export default function Dashboard() {
           </div>
         </div>
 
+
+        {/* Usage Counter for Free Tier */}
+        <div className="mb-6">
+          <UsageCounter usage={usage} onUpgradeClick={() => setShowWaitlist(true)} />
+        </div>
+
         <StatsOverview stats={stats} loading={loadingData} />
+
 
         {/* Bot Mode Panel */}
         <div className="my-8">
-          <BotModePanel userId={userId} />
+          <BotModePanel
+            userId={userId}
+            postsRemaining={usage?.posts_remaining ?? 10}
+            tier={usage?.tier ?? 'free'}
+          />
         </div>
+
 
         {/* Quick Action Buttons */}
         <div className="flex flex-wrap gap-3 mb-8">
@@ -371,18 +435,22 @@ export default function Dashboard() {
             </svg>
             Analytics
           </button>
-          <button
-            onClick={() => setShowScheduleModal(true)}
-            disabled={!preview}
-            className="px-4 py-2 bg-white dark:bg-white/5 border-2 border-orange-200 dark:border-orange-500/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Schedule post"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Schedule
-          </button>
+
+          {/* Schedule button - only shows after post is generated */}
+          {preview && (
+            <button
+              onClick={() => setShowScheduleModal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all flex items-center shadow-sm hover:shadow-md"
+              aria-label="Schedule post"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Schedule Post
+            </button>
+          )}
         </div>
+
 
         {/* Analytics Panel */}
         {showAnalytics && (
@@ -485,6 +553,24 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Waitlist Modal for Pro tier */}
+      <WaitlistModal isOpen={showWaitlist} onClose={() => setShowWaitlist(false)} />
+
+      {/* History Modal */}
+      <HistoryModal
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        posts={postHistory.map(p => ({
+          id: String(p.id),
+          post_content: p.post_content,
+          status: (p.status as 'published' | 'scheduled' | 'draft') || 'published',
+          created_at: String(p.created_at)
+        }))}
+
+        loading={loadingData}
+      />
     </div>
   );
 }
+

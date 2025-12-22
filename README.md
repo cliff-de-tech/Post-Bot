@@ -92,6 +92,72 @@ This project prioritizes **safety and compliance**:
 
 ---
 
+## Credential & Security Model
+
+This project implements a secure multi-tenant architecture with encryption at rest.
+
+### (A) App-Level Secrets (ENV-ONLY)
+
+Platform secrets that **NEVER** enter the database. Loaded from environment variables only.
+
+| Secret | Purpose | Notes |
+|--------|---------|-------|
+| `LINKEDIN_CLIENT_ID/SECRET` | OAuth app credentials | Operator-owned |
+| `GROQ_API_KEY` | AI generation | Operator-owned |
+| `GITHUB_TOKEN` | Higher API rate limits | Operator-owned |
+| `UNSPLASH_ACCESS_KEY` | Image fetching | Operator-owned |
+| `ENCRYPTION_KEY` | Token encryption key | 32-byte Fernet key |
+| `CLERK_ISSUER` | JWT verification | Auth provider URL |
+
+### (B) User-Level OAuth Tokens (Encrypted DB Storage)
+
+Per-user tokens stored in `backend_tokens.db` with **Fernet encryption at rest**.
+
+| Data | Encrypted | Notes |
+|------|-----------|-------|
+| `access_token` | ✅ Yes | LinkedIn OAuth token |
+| `refresh_token` | ✅ Yes | Token refresh |
+| `github_access_token` | ✅ Yes | Optional GitHub PAT |
+| `linkedin_user_urn` | No | User's LinkedIn ID |
+| `github_username` | No | Public identifier |
+| `scopes` | No | OAuth scopes granted |
+
+### (C) User Preferences (No Secrets)
+
+User settings in `user_settings.db` contain **preferences only**, no secrets.
+
+| Data | Type | Notes |
+|------|------|-------|
+| `github_username` | Text | Public identifier |
+| `preferences` | JSON | UI/UX preferences |
+| `onboarding_complete` | Boolean | Setup status |
+| `subscription_tier` | Text | free/pro/enterprise |
+
+### Multi-Tenant Isolation
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    TENANT ISOLATION                          │
+├─────────────────────────────────────────────────────────────┤
+│  1. Every DB query filters by user_id (Clerk ID)            │
+│  2. get_token_by_user_id() is the primary retrieval method  │
+│  3. Tokens are encrypted per-user with shared ENCRYPTION_KEY│
+│  4. Frontend receives connection STATUS only, never tokens  │
+│  5. Parameterized queries prevent SQL injection             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Encryption Implementation
+
+- **Algorithm**: Fernet (AES-128-CBC + HMAC-SHA256)
+- **Key**: 32-byte URL-safe base64, loaded from `ENCRYPTION_KEY` env var
+- **Auto-migration**: Plaintext tokens encrypted on first access
+- **Prefix**: Encrypted values start with `ENC:` for identification
+
+Generate a key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |

@@ -12,27 +12,7 @@ interface StatsProps {
 
 export const StatsOverview: React.FC<StatsProps> = ({ stats, loading }) => {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" role="region" aria-label="Dashboard statistics">
-            {/* Credits Card */}
-            <div className="bg-white dark:bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-gray-600 dark:text-gray-400 font-medium" id="credits-label">Credits Remaining</h3>
-                    <div className="p-2 bg-blue-50 dark:bg-blue-500/10 rounded-lg" aria-hidden="true">
-                        <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                    </div>
-                </div>
-                {loading ? (
-                    <Skeleton className="h-8 w-24" />
-                ) : (
-                    <div className="flex items-baseline gap-2" aria-labelledby="credits-label">
-                        <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.credits_remaining || 0}</span>
-                        <span className="text-sm text-gray-500">/ 50</span>
-                    </div>
-                )}
-            </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" role="region" aria-label="Dashboard statistics">
             {/* Generated Card */}
             <div className="bg-white dark:bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center justify-between mb-4">
@@ -80,4 +60,5 @@ export const StatsOverview: React.FC<StatsProps> = ({ stats, loading }) => {
         </div>
     );
 };
+
 

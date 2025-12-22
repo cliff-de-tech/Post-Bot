@@ -83,8 +83,12 @@ try:
         # save_post, # Already imported above
         # get_user_posts, # Already imported above
         update_post_status,
-        delete_post
+        delete_post,
+        get_user_usage,
+        can_user_generate_posts,
+        can_user_schedule_post
     )
+
     from services.github_activity import get_user_activity, get_repo_details
     from services.email_service import email_service
     from services.scheduled_posts import (
@@ -742,13 +746,70 @@ async def scan_github_activity(req: ScanRequest):
         return {"error": str(e), "activities": [], "all_activities": []}
 
 
+# =============================================================================
+# USAGE TRACKING ENDPOINTS
+# =============================================================================
+
+@app.get("/api/usage/{user_id}")
+def get_usage(user_id: str):
+    """Get user's current usage data for free tier limits"""
+    try:
+        if not get_user_usage:
+            return {"error": "Usage tracking not available"}
+        
+        # Get user's subscription tier (default to free)
+        tier = "free"
+        if get_user_settings:
+            try:
+                settings = get_user_settings(user_id)
+                if settings:
+                    tier = settings.get('subscription_tier', 'free')
+            except Exception:
+                pass
+        
+        usage = get_user_usage(user_id, tier)
+        return {"success": True, "usage": usage}
+    except Exception as e:
+        print(f"Error getting usage: {e}")
+        return {"error": str(e)}
+
+
 @app.post("/api/post/generate-batch")
 async def generate_batch_posts(req: BatchGenerateRequest):
     """Generate posts for multiple activities"""
     if not generate_post_with_ai:
         return {"error": "AI service not available"}
     
+    # Check free tier limits
+    if can_user_generate_posts:
+        try:
+            # Get user's subscription tier (default to free)
+            tier = "free"
+            if get_user_settings:
+                settings = get_user_settings(req.user_id)
+                if settings:
+                    tier = settings.get('subscription_tier', 'free')
+            
+            # Check if user can generate the requested number of posts
+            limit_check = can_user_generate_posts(req.user_id, len(req.activities), tier)
+            
+            if not limit_check.get("allowed"):
+                # Return 429 Too Many Requests with usage info
+                return {
+                    "success": False,
+                    "error": limit_check.get("reason", "Daily limit reached"),
+                    "limit_exceeded": True,
+                    "remaining": limit_check.get("remaining", 0),
+                    "posts": [],
+                    "generated_count": 0,
+                    "failed_count": 0
+                }
+        except Exception as e:
+            print(f"Error checking usage limits: {e}")
+            # Continue without limit check if there's an error
+    
     # Get user's Groq API key
+
     groq_api_key = None
     if get_user_settings:
         try:

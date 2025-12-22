@@ -19,6 +19,9 @@ import os
 import requests
 
 # Fallback credentials from environment (used if per-user tokens not available)
+# CREDENTIAL CLASSIFICATION:
+# - LINKEDIN_ACCESS_TOKEN: (A) App-level secret - CLI fallback only, web uses per-user DB tokens
+# - LINKEDIN_USER_URN: (A) App-level - CLI fallback only, web uses per-user DB values
 # SECURITY: These are loaded from environment, never hardcoded
 LINKEDIN_ACCESS_TOKEN = os.getenv('LINKEDIN_ACCESS_TOKEN', '')
 LINKEDIN_USER_URN = os.getenv('LINKEDIN_USER_URN', '')

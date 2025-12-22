@@ -9,6 +9,7 @@ def get_user_activity(username: str, limit: int = 10):
     """Fetch recent GitHub activity for a user"""
     try:
         headers = {}
+        # CREDENTIAL CLASSIFICATION: (A) App-level secret - provides higher GitHub API rate limits
         github_token = os.getenv('GITHUB_TOKEN')
         if github_token:
             headers['Authorization'] = f'token {github_token}'
@@ -70,23 +71,38 @@ def parse_event(event):
     if event_type == 'PushEvent':
         payload = event.get('payload', {})
         commits = len(payload.get('commits', []))
-        # Skip pushes with 0 commits (e.g., branch deletes, force pushes with no new commits)
+        # Handle both regular pushes and force pushes/updates (0 commits)
         if commits == 0:
-            return None
-        activity.update({
-            'type': 'push',
-            'icon': '🚀',
-            'title': f"Pushed {commits} commit{'s' if commits != 1 else ''} to {repo}",
-            'description': f"{commits} new commit{'s' if commits != 1 else ''}",
-            'context': {
+            # Force push or branch update - still show it
+            activity.update({
                 'type': 'push',
-                'commits': commits,
-                'repo': repo.split('/')[-1],
-                'full_repo': repo,
-                'date': time_ago
-            }
-        })
+                'icon': '🔄',
+                'title': f"Updated {repo} branch",
+                'description': "Repository update (force push or sync)",
+                'context': {
+                    'type': 'push',
+                    'commits': 0,
+                    'repo': repo.split('/')[-1],
+                    'full_repo': repo,
+                    'date': time_ago
+                }
+            })
+        else:
+            activity.update({
+                'type': 'push',
+                'icon': '🚀',
+                'title': f"Pushed {commits} commit{'s' if commits != 1 else ''} to {repo}",
+                'description': f"{commits} new commit{'s' if commits != 1 else ''}",
+                'context': {
+                    'type': 'push',
+                    'commits': commits,
+                    'repo': repo.split('/')[-1],
+                    'full_repo': repo,
+                    'date': time_ago
+                }
+            })
         return activity
+
     
     elif event_type == 'PullRequestEvent':
         payload = event.get('payload', {})

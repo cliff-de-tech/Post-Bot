@@ -586,14 +586,25 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {/* Free Tier */}
-            <div className="p-8 rounded-2xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:shadow-xl transition-all">
+            <div className="p-8 rounded-2xl bg-white dark:bg-white/5 border-2 border-green-500 dark:border-green-500/50 hover:shadow-xl transition-all relative">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                AVAILABLE NOW
+              </div>
               <div className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">Free</div>
               <div className="text-4xl font-bold mb-1">$0</div>
               <div className="text-gray-500 mb-6">Forever free</div>
               <ul className="space-y-3 mb-8">
-                {['10 posts/month', 'Basic AI templates', 'GitHub integration', 'Manual publishing', 'Community support'].map((feature, i) => (
+                {[
+                  '10 posts per day',
+                  '10 scheduled posts',
+                  'Standard AI template',
+                  'GitHub integration',
+                  'Manual publishing',
+                  'Basic analytics (7 days)',
+                  'Community support'
+                ].map((feature, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
-                    <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     {feature}
@@ -602,24 +613,31 @@ export default function Home() {
               </ul>
               <button
                 onClick={() => router.push('/sign-up')}
-                className="w-full py-3 px-6 rounded-xl border-2 border-gray-300 dark:border-white/20 font-semibold hover:border-blue-500 hover:text-blue-600 transition-all"
+                className="w-full py-3 px-6 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 transition-all"
               >
-                Get Started
+                Get Started Free
               </button>
             </div>
 
-            {/* Pro Tier */}
-            <div className="p-8 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 text-white relative overflow-hidden transform hover:scale-105 transition-all shadow-xl">
-              <div className="absolute top-4 right-4 px-3 py-1 bg-white/20 rounded-full text-xs font-bold">
-                POPULAR
+            {/* Pro Tier - Coming Soon */}
+            <div className="p-8 rounded-2xl bg-gradient-to-br from-blue-600/80 to-purple-700/80 text-white relative overflow-hidden transition-all shadow-xl opacity-90">
+              <div className="absolute top-4 right-4 px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full text-xs font-bold">
+                COMING SOON
               </div>
               <div className="text-lg font-semibold text-blue-100 mb-2">Pro</div>
               <div className="text-4xl font-bold mb-1">$19</div>
               <div className="text-blue-200 mb-6">/month</div>
-              <ul className="space-y-3 mb-8">
-                {['Unlimited posts', 'All AI templates', 'Advanced customization', 'Scheduled posting', 'Priority support', 'Analytics dashboard'].map((feature, i) => (
+              <ul className="space-y-3 mb-8 opacity-80">
+                {[
+                  'Unlimited posts',
+                  'All AI templates',
+                  'Advanced customization',
+                  'Unlimited scheduling',
+                  'Priority support',
+                  'Full analytics (30 days)'
+                ].map((feature, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
-                    <svg className="w-5 h-5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 text-blue-200 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     {feature}
@@ -627,22 +645,32 @@ export default function Home() {
                 ))}
               </ul>
               <button
-                onClick={() => router.push('/sign-up')}
-                className="w-full py-3 px-6 rounded-xl bg-white text-blue-600 font-bold hover:bg-blue-50 transition-all"
+                disabled
+                className="w-full py-3 px-6 rounded-xl bg-white/30 text-white font-bold cursor-not-allowed"
               >
-                Start Pro Trial
+                Coming Soon
               </button>
             </div>
 
-            {/* Team Tier */}
-            <div className="p-8 rounded-2xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:shadow-xl transition-all">
+            {/* Team Tier - Coming Soon */}
+            <div className="p-8 rounded-2xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 transition-all relative opacity-90">
+              <div className="absolute top-4 right-4 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-xs font-bold">
+                COMING SOON
+              </div>
               <div className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">Team</div>
               <div className="text-4xl font-bold mb-1">$49</div>
               <div className="text-gray-500 mb-6">/month</div>
-              <ul className="space-y-3 mb-8">
-                {['Everything in Pro', 'Up to 5 team members', 'Shared content library', 'Team analytics', 'SSO & Admin controls', 'Dedicated support'].map((feature, i) => (
+              <ul className="space-y-3 mb-8 opacity-70">
+                {[
+                  'Everything in Pro',
+                  'Up to 5 team members',
+                  'Shared content library',
+                  'Team analytics',
+                  'SSO & Admin controls',
+                  'Dedicated support'
+                ].map((feature, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
-                    <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     {feature}
@@ -650,14 +678,15 @@ export default function Home() {
                 ))}
               </ul>
               <button
-                onClick={() => router.push('/sign-up')}
-                className="w-full py-3 px-6 rounded-xl border-2 border-gray-300 dark:border-white/20 font-semibold hover:border-blue-500 hover:text-blue-600 transition-all"
+                disabled
+                className="w-full py-3 px-6 rounded-xl border-2 border-gray-300 dark:border-white/20 font-semibold text-gray-400 cursor-not-allowed"
               >
-                Contact Sales
+                Coming Soon
               </button>
             </div>
           </div>
         </div>
+
 
         {/* FAQ SECTION */}
         <div id="faq" className="max-w-4xl mx-auto py-24 border-t border-gray-200 dark:border-white/10">
@@ -675,8 +704,9 @@ export default function Home() {
             {[
               {
                 q: 'Is PostBot really free?',
-                a: 'Yes! Our Free tier gives you 10 posts per month forever. No credit card required. Upgrade to Pro only if you need unlimited posts and advanced features.'
+                a: 'Yes! Our Free tier gives you 10 posts per day and 10 scheduled posts. No credit card required. Pro and Team tiers with unlimited posts are coming soon!'
               },
+
               {
                 q: 'What AI model powers PostBot?',
                 a: 'We use Groq Cloud with the Llama 3 70B model for lightning-fast, high-quality content generation. You can also bring your own Groq API key.'

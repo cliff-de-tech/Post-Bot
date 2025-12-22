@@ -1,5 +1,18 @@
 import React from 'react';
-import { Post } from '@/types/dashboard';
+
+// Post interface matching the API response from /api/posts/{user_id}
+export interface Post {
+    id: number;
+    post_content: string;
+    post_type: string;
+    context: Record<string, unknown>;
+    status: string;
+    linkedin_post_id: string | null;
+    engagement: Record<string, unknown>;
+    created_at: number;
+    published_at: number | null;
+}
+
 
 interface PostHistoryProps {
     posts: Post[];
@@ -38,8 +51,8 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className={`px-2 py-1 text-xs font-semibold rounded ${post.status === 'published'
-                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                                             }`}>
                                             {post.status}
                                         </span>

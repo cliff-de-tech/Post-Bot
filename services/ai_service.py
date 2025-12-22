@@ -11,8 +11,11 @@ except ImportError:
     pass  # dotenv not installed, will use system environment variables
 
 # Load config
+# CREDENTIAL CLASSIFICATION:
+# - GROQ_API_KEY: (A) App-level secret OR (C) User-provided - can be overridden per-user via groq_api_key param
+# - GITHUB_USERNAME: (C) User-provided identifier - default for CLI, overridden per-user in web
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
-GITHUB_USERNAME = os.getenv('GITHUB_USERNAME', 'cliff-de-tech')
+GITHUB_USERNAME = os.getenv('GITHUB_USERNAME', 'cliff-de-tech')  # Fallback for CLI mode only
 
 # =============================================================================
 # PROMPT TEMPLATES

@@ -7,6 +7,14 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+    // DEV TEST MODE (DISABLED): Uncomment to bypass auth with ?test=true
+    // const url = new URL(req.url);
+    // const isTestMode = url.searchParams.get('test') === 'true';
+    // if (isTestMode) {
+    //     console.log('🧪 DEV TEST MODE: Skipping auth for', req.url);
+    //     return;
+    // }
+
     if (isProtectedRoute(req)) await auth.protect();
 });
 

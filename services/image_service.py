@@ -3,6 +3,7 @@ import random
 from urllib.parse import quote
 import requests
 
+# CREDENTIAL CLASSIFICATION: (A) App-level secret OR (C) User-provided via settings
 UNSPLASH_ACCESS_KEY = os.getenv('UNSPLASH_ACCESS_KEY', '')
 
 

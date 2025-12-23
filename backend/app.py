@@ -239,15 +239,23 @@ app = FastAPI(
     },
 )
 
-# Initialize databases
-if init_db:
-    init_db()
-if init_settings_db:
-    init_settings_db()
-if init_post_history_db:
-    init_post_history_db()
-if init_settings_db:
-    init_settings_db()
+# =============================================================================
+# DATABASE LIFECYCLE HOOKS (PostgreSQL Async)
+# =============================================================================
+from services.db import connect_db, disconnect_db, init_tables
+
+
+@app.on_event("startup")
+async def startup():
+    """Initialize database connection pool and create tables."""
+    await connect_db()
+    await init_tables()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Close database connection pool."""
+    await disconnect_db()
 
 # Add CORS middleware
 # CORS_ORIGINS env var should be comma-separated list of allowed origins
@@ -303,7 +311,7 @@ class DisconnectRequest(BaseModel):
 
 
 @app.get("/health")
-def health():
+async def health():
     return {"ok": True}
 
 
@@ -328,7 +336,7 @@ async def submit_feedback(req: FeedbackRequest):
     
     try:
         # Save to database
-        result = save_feedback(
+        result = await save_feedback(
             user_id=req.user_id,
             rating=req.rating,
             liked=req.liked,
@@ -363,12 +371,12 @@ Suggestions: {req.suggestions or 'None'}
 
 
 @app.get("/api/feedback/status/{user_id}")
-def get_feedback_status(user_id: str):
+async def get_feedback_status(user_id: str):
     """Check if user has already submitted feedback."""
     if not has_user_submitted_feedback:
         return {"has_submitted": False}
     
-    return {"has_submitted": has_user_submitted_feedback(user_id)}
+    return {"has_submitted": await has_user_submitted_feedback(user_id)}
 
 
 # =============================================================================
@@ -388,34 +396,21 @@ class ContactRequest(BaseModel):
 async def submit_contact(req: ContactRequest):
     """Submit a support/contact form request.
     
-    Stores the ticket locally and optionally sends an email notification.
-    Returns success even if email fails (ticket is still logged).
+    Stores the ticket in PostgreSQL and optionally sends an email notification.
+    Returns success even if email fails (ticket is still stored).
     """
-    import json
-    from datetime import datetime
+    import time
+    from services.db import get_database
     
     try:
-        # Create tickets directory if it doesn't exist
-        tickets_dir = os.path.join(os.path.dirname(__file__), "data", "tickets")
-        os.makedirs(tickets_dir, exist_ok=True)
-        
-        # Generate ticket data
+        db = get_database()
         ticket_id = str(uuid4())[:8].upper()
-        ticket = {
-            "id": ticket_id,
-            "name": req.name,
-            "email": req.from_email,
-            "subject": req.subject,
-            "body": req.body,
-            "to": req.to,
-            "created_at": datetime.now().isoformat(),
-            "status": "open"
-        }
         
-        # Save ticket to file
-        ticket_file = os.path.join(tickets_dir, f"ticket_{ticket_id}.json")
-        with open(ticket_file, "w") as f:
-            json.dump(ticket, f, indent=2)
+        # Store ticket in PostgreSQL
+        await db.execute("""
+            INSERT INTO tickets (id, name, email, subject, body, recipient, status, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        """, [ticket_id, req.name, req.from_email, req.subject, req.body, req.to, 'open', int(time.time())])
         
         # Try to send email notification if email service is available
         email_sent = False
@@ -475,7 +470,7 @@ async def generate_preview(
     groq_api_key = None
     if user_id and get_user_settings:
         try:
-            settings = get_user_settings(user_id)
+            settings = await get_user_settings(user_id)
             if settings:
                 groq_api_key = settings.get('groq_api_key')
         except Exception as e:
@@ -487,7 +482,7 @@ async def generate_preview(
 
 
 @app.post("/publish")
-def publish(req: PostRequest):
+async def publish(req: PostRequest):
     if not generate_post_with_ai:
         return {"error": "generate_post_with_ai not available (import failed)"}
 
@@ -496,7 +491,7 @@ def publish(req: PostRequest):
     user_settings = None
     if req.user_id and get_user_settings:
         try:
-            user_settings = get_user_settings(req.user_id)
+            user_settings = await get_user_settings(req.user_id)
             if user_settings:
                 groq_api_key = user_settings.get('groq_api_key')
         except Exception as e:
@@ -517,7 +512,7 @@ def publish(req: PostRequest):
     # First try: use user's specific token
     if req.user_id and get_token_by_user_id:
         try:
-            user_token = get_token_by_user_id(req.user_id)
+            user_token = await get_token_by_user_id(req.user_id)
             if user_token:
                 linkedin_urn = user_token.get('linkedin_user_urn')
                 token = user_token.get('access_token')
@@ -535,7 +530,7 @@ def publish(req: PostRequest):
     # Fallback: use first stored account or environment-based service
     accounts = []
     try:
-        accounts = get_all_tokens() if get_all_tokens else []
+        accounts = await get_all_tokens() if get_all_tokens else []
     except Exception:
         accounts = []
 
@@ -566,7 +561,7 @@ def publish(req: PostRequest):
 
 
 @app.get('/auth/linkedin/start')
-def linkedin_start(redirect_uri: str, user_id: str = None):
+async def linkedin_start(redirect_uri: str, user_id: str = None):
     """Redirects the user to LinkedIn's authorization page.
     
     If user_id is provided, uses that user's saved LinkedIn credentials.
@@ -595,7 +590,7 @@ def linkedin_start(redirect_uri: str, user_id: str = None):
     # Try to use per-user credentials if user_id provided
     if user_id and get_user_settings:
         try:
-            settings = get_user_settings(user_id)
+            settings = await get_user_settings(user_id)
             if settings and settings.get('linkedin_client_id'):
                 # Note: get_authorize_url_for_user might need to be updated to accept state? 
                 # Assuming it works similar to get_authorize_url
@@ -617,7 +612,7 @@ def linkedin_start(redirect_uri: str, user_id: str = None):
 
 
 @app.get('/auth/linkedin/callback')
-def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = None):
+async def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = None):
     """
     Exchange code for token and redirect back to frontend.
     
@@ -670,7 +665,7 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
         
         # Use per-user credentials if we have a user_id
         if user_id and get_user_settings and exchange_code_for_token_with_user:
-            settings = get_user_settings(user_id)
+            settings = await get_user_settings(user_id)
             if settings and settings.get('linkedin_client_id') and settings.get('linkedin_client_secret'):
                 result = exchange_code_for_token_with_user(
                     settings['linkedin_client_id'],
@@ -682,7 +677,7 @@ def linkedin_callback(code: str = None, state: str = None, redirect_uri: str = N
                 # Also save the URN to user settings
                 if save_user_settings:
                     settings['linkedin_user_urn'] = result.get('linkedin_user_urn')
-                    save_user_settings(user_id, settings)
+                    await save_user_settings(user_id, settings)
         
         # Fallback to global credentials
         if not result:
@@ -710,7 +705,7 @@ GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
 
 
 @app.get('/auth/github/start')
-def github_oauth_start(redirect_uri: str, user_id: str):
+async def github_oauth_start(redirect_uri: str, user_id: str):
     """
     Start GitHub OAuth flow.
     
@@ -741,7 +736,7 @@ def github_oauth_start(redirect_uri: str, user_id: str):
 
 
 @app.get('/auth/github/callback')
-def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str = None):
+async def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str = None):
     """
     Handle GitHub OAuth callback.
     
@@ -804,13 +799,13 @@ def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str
         
         # Store the token encrypted
         from services.token_store import save_github_token
-        save_github_token(user_id, github_username, access_token)
+        await save_github_token(user_id, github_username, access_token)
         
         # Also update user settings with username
         if save_user_settings and get_user_settings:
-            settings = get_user_settings(user_id) or {}
+            settings = await get_user_settings(user_id) or {}
             settings['github_username'] = github_username
-            save_user_settings(user_id, settings)
+            await save_user_settings(user_id, settings)
         
         return {
             "status": "success", 
@@ -825,7 +820,7 @@ def github_oauth_callback(code: str = None, state: str = None, redirect_uri: str
 
 
 @app.post("/api/disconnect-github")
-def disconnect_github(request: DisconnectRequest):
+async def disconnect_github(request: DisconnectRequest):
     """
     Disconnect a user's GitHub OAuth token.
     
@@ -876,12 +871,12 @@ class AuthRefreshRequest(BaseModel):
 
 
 @app.post("/api/auth/refresh")
-def refresh_auth(req: AuthRefreshRequest):
+async def refresh_auth(req: AuthRefreshRequest):
     """Check if user has valid LinkedIn connection"""
     if not get_user_settings:
         return {"error": "Settings service not available"}
     try:
-        settings = get_user_settings(req.user_id)
+        settings = await get_user_settings(req.user_id)
         if settings and settings.get("linkedin_user_urn"):
             # User has LinkedIn connected
             return {
@@ -895,19 +890,19 @@ def refresh_auth(req: AuthRefreshRequest):
 
 
 @app.post("/api/settings")
-def save_settings(settings: UserSettingsRequest):
+async def save_settings(settings: UserSettingsRequest):
     """Save user settings"""
     if not save_user_settings:
         return {"error": "User settings service not available"}
     try:
-        save_user_settings(settings.user_id, settings.dict())
+        await save_user_settings(settings.user_id, settings.dict())
         return {"status": "success"}
     except Exception as e:
         return {"error": str(e)}
 
 
 @app.get("/api/settings/{user_id}")
-def get_settings(user_id: str):
+async def get_settings(user_id: str):
     """
     Get user settings by user ID.
     
@@ -917,7 +912,7 @@ def get_settings(user_id: str):
     if not get_user_settings:
         return {"error": "User settings service not available"}
     try:
-        settings = get_user_settings(user_id)
+        settings = await get_user_settings(user_id)
         if settings:
             # SECURITY: Only return safe data, no credentials
             return {
@@ -933,7 +928,7 @@ def get_settings(user_id: str):
 
 
 @app.get("/api/connection-status/{user_id}")
-def get_connection_status_endpoint(user_id: str):
+async def get_connection_status_endpoint(user_id: str):
     """
     Get connection status for a user.
     
@@ -949,19 +944,19 @@ def get_connection_status_endpoint(user_id: str):
         # Import get_connection_status from token_store
         from services.token_store import get_connection_status, get_token_by_user_id
         
-        status = get_connection_status(user_id)
+        status = await get_connection_status(user_id)
         
         # Get github_username from settings
         github_username = ''
         if get_user_settings:
-            settings = get_user_settings(user_id)
+            settings = await get_user_settings(user_id)
             if settings:
                 github_username = settings.get('github_username', '')
         
         # Check if user has GitHub OAuth token (for private repos)
         github_oauth_connected = False
         try:
-            token_data = get_token_by_user_id(user_id)
+            token_data = await get_token_by_user_id(user_id)
             if token_data and token_data.get('github_access_token'):
                 github_oauth_connected = True
         except:
@@ -989,7 +984,7 @@ class DisconnectRequest(BaseModel):
 
 
 @app.post("/api/disconnect-linkedin")
-def disconnect_linkedin(request: DisconnectRequest):
+async def disconnect_linkedin(request: DisconnectRequest):
     """
     Disconnect a user's LinkedIn account.
     
@@ -1003,7 +998,7 @@ def disconnect_linkedin(request: DisconnectRequest):
     try:
         from services.token_store import delete_token_by_user_id
         
-        deleted = delete_token_by_user_id(request.user_id)
+        deleted = await delete_token_by_user_id(request.user_id)
         
         if deleted:
             return {"success": True, "message": "LinkedIn disconnected"}
@@ -1014,7 +1009,7 @@ def disconnect_linkedin(request: DisconnectRequest):
 
 
 @app.get("/api/github/activity/{username}")
-def github_activity(username: str, limit: int = 10):
+async def github_activity(username: str, limit: int = 10):
     """Get GitHub activity for a user"""
     if not get_user_activity:
         return {"error": "GitHub service not available"}
@@ -1026,7 +1021,7 @@ def github_activity(username: str, limit: int = 10):
 
 
 @app.get("/api/github/repo/{owner}/{repo}")
-def github_repo(owner: str, repo: str):
+async def github_repo(owner: str, repo: str):
     """Get GitHub repository details"""
     if not get_repo_details:
         return {"error": "GitHub service not available"}
@@ -1039,12 +1034,12 @@ def github_repo(owner: str, repo: str):
 
 # Post history endpoints
 @app.get("/api/posts/{user_id}")
-def get_posts(user_id: str, limit: int = 50, status: str = None):
+async def get_posts(user_id: str, limit: int = 50, status: str = None):
     """Get user's post history"""
     if not get_user_posts:
         return {"error": "Post history service not available"}
     try:
-        posts = get_user_posts(user_id, limit, status)
+        posts = await get_user_posts(user_id, limit, status)
         return {"posts": posts}
     except Exception as e:
         return {"error": str(e)}
@@ -1062,24 +1057,24 @@ class SavePostRequest(BaseModel):
 
 
 @app.delete("/api/posts/{post_id}")
-def remove_post(post_id: int):
+async def remove_post(post_id: int):
     """Delete a post from history"""
     if not delete_post:
         return {"error": "Post history service not available"}
     try:
-        delete_post(post_id)
+        await delete_post(post_id)
         return {"status": "success"}
     except Exception as e:
         return {"error": str(e)}
 
 
 @app.get("/api/stats/{user_id}")
-def user_stats(user_id: str):
+async def user_stats(user_id: str):
     """Get user statistics"""
     if not get_user_stats:
         return {"error": "Stats service not available"}
     try:
-        stats = get_user_stats(user_id)
+        stats = await get_user_stats(user_id)
         return stats
     except Exception as e:
         return {"error": str(e)}
@@ -1126,7 +1121,7 @@ TEMPLATES = [
 
 
 @app.get("/api/templates")
-def get_templates():
+async def get_templates():
     """Get post templates"""
     return {"templates": TEMPLATES}
 
@@ -1140,7 +1135,7 @@ class ContactRequest(BaseModel):
 
 
 @app.post("/api/contact")
-def send_contact_email(req: ContactRequest):
+async def send_contact_email(req: ContactRequest):
     """Send contact form email"""
     if not email_service:
         return {
@@ -1216,7 +1211,7 @@ async def scan_github_activity(req: ScanRequest):
     user_tier = 'free'  # Default
     if get_user_settings:
         try:
-            settings = get_user_settings(req.user_id)
+            settings = await get_user_settings(req.user_id)
             if settings:
                 user_tier = settings.get('subscription_tier', 'free')
         except Exception:
@@ -1234,7 +1229,7 @@ async def scan_github_activity(req: ScanRequest):
     github_username = None
     if get_user_settings:
         try:
-            settings = get_user_settings(req.user_id)
+            settings = await get_user_settings(req.user_id)
             if settings:
                 github_username = settings.get('github_username')
         except Exception as e:
@@ -1251,7 +1246,7 @@ async def scan_github_activity(req: ScanRequest):
     github_token = None
     if get_token_by_user_id:
         try:
-            token_data = get_token_by_user_id(req.user_id)
+            token_data = await get_token_by_user_id(req.user_id)
             if token_data:
                 github_token = token_data.get('github_access_token')
         except Exception as e:
@@ -1313,7 +1308,7 @@ async def scan_github_activity(req: ScanRequest):
 # =============================================================================
 
 @app.get("/api/usage/{user_id}")
-def get_usage(user_id: str, timezone: str = "UTC"):
+async def get_usage(user_id: str, timezone: str = "UTC"):
     """Get user's current usage data for free tier limits
     
     Args:
@@ -1328,14 +1323,14 @@ def get_usage(user_id: str, timezone: str = "UTC"):
         tier = "free"
         if get_user_settings:
             try:
-                settings = get_user_settings(user_id)
+                settings = await get_user_settings(user_id)
                 if settings:
                     tier = settings.get('subscription_tier', 'free')
             except Exception:
                 pass
         
         # Pass timezone for accurate reset calculation
-        usage = get_user_usage(user_id, tier, timezone)
+        usage = await get_user_usage(user_id, tier, timezone)
         return {"success": True, "usage": usage, **usage}  # Spread usage for backwards compat
     except Exception as e:
         print(f"Error getting usage: {e}")
@@ -1354,12 +1349,12 @@ async def generate_batch_posts(req: BatchGenerateRequest):
             # Get user's subscription tier (default to free)
             tier = "free"
             if get_user_settings:
-                settings = get_user_settings(req.user_id)
+                settings = await get_user_settings(req.user_id)
                 if settings:
                     tier = settings.get('subscription_tier', 'free')
             
             # Check if user can generate the requested number of posts
-            limit_check = can_user_generate_posts(req.user_id, len(req.activities), tier)
+            limit_check = await can_user_generate_posts(req.user_id, len(req.activities), tier)
             
             if not limit_check.get("allowed"):
                 # Return 429 Too Many Requests with usage info
@@ -1381,7 +1376,7 @@ async def generate_batch_posts(req: BatchGenerateRequest):
     groq_api_key = None
     if get_user_settings:
         try:
-            settings = get_user_settings(req.user_id)
+            settings = await get_user_settings(req.user_id)
             if settings:
                 groq_api_key = settings.get('groq_api_key')
         except Exception:
@@ -1520,7 +1515,7 @@ async def publish_full(req: FullPublishRequest):
         
         if get_user_settings:
             try:
-                settings = get_user_settings(req.user_id)
+                settings = await get_user_settings(req.user_id)
                 if settings:
                     user_tier = settings.get('subscription_tier', 'free')
                     user_timezone = settings.get('timezone', 'UTC')
@@ -1528,7 +1523,7 @@ async def publish_full(req: FullPublishRequest):
                 pass
         
         if user_tier == "free" and get_user_usage:
-            usage = get_user_usage(req.user_id, tier="free", user_timezone=user_timezone)
+            usage = await get_user_usage(req.user_id, tier="free", user_timezone=user_timezone)
             if usage.get('posts_remaining', 10) <= 0:
                 return {
                     "error": "Daily limit reached",
@@ -1562,12 +1557,12 @@ async def publish_full(req: FullPublishRequest):
     if get_user_settings and get_token_by_user_id:
         try:
             # Get user settings for URN
-            settings = get_user_settings(req.user_id)
+            settings = await get_user_settings(req.user_id)
             if settings:
                 linkedin_urn = settings.get('linkedin_user_urn')
             
             # Get token
-            token_data = get_token_by_user_id(req.user_id)
+            token_data = await get_token_by_user_id(req.user_id)
             if token_data:
                 access_token = token_data.get('access_token')
         except Exception as e:
@@ -1598,7 +1593,7 @@ async def publish_full(req: FullPublishRequest):
         # Save to post history
         if save_post:
             try:
-                save_post(
+                await save_post(
                     user_id=req.user_id,
                     post_content=req.post_content,
                     post_type='bot_generated',
@@ -1620,13 +1615,13 @@ async def publish_full(req: FullPublishRequest):
 
 
 @app.post("/api/posts")
-def api_save_post(req: SavePostRequest):
+async def api_save_post(req: SavePostRequest):
     """Save a post to history (draft or published)"""
     if not save_post:
         return {"error": "History service not available"}
     
     try:
-        post_id = save_post(
+        post_id = await save_post(
             user_id=req.user_id,
             post_content=req.post_content,
             post_type=req.post_type,
@@ -1640,13 +1635,13 @@ def api_save_post(req: SavePostRequest):
 
 
 @app.get("/api/stats/{user_id}")
-def get_stats(user_id: str):
+async def get_stats(user_id: str):
     """Get user content analytics"""
     if not get_user_stats:
         return {"error": "Stats service not available"}
     
     try:
-        stats = get_user_stats(user_id)
+        stats = await get_user_stats(user_id)
         return {"success": True, "stats": stats}
     except Exception as e:
         print(f"Error fetching stats: {e}")
@@ -1668,23 +1663,23 @@ class RescheduleRequest(BaseModel):
     new_time: int
 
 @app.get("/api/scheduled/{user_id}")
-def list_scheduled_posts(user_id: str, include_past: bool = False):
+async def list_scheduled_posts(user_id: str, include_past: bool = False):
     """Get all scheduled posts for a user"""
     try:
         if init_scheduled_db:
             init_scheduled_db()
-        posts = get_scheduled_posts(user_id, include_past) if get_scheduled_posts else []
+        posts = await get_scheduled_posts(user_id, include_past) if get_scheduled_posts else []
         return {"success": True, "posts": posts}
     except Exception as e:
         return {"error": str(e), "success": False}
 
 @app.post("/api/scheduled")
-def create_scheduled_post(req: SchedulePostRequest):
+async def create_scheduled_post(req: SchedulePostRequest):
     """Schedule a post for later publishing"""
     try:
         if init_scheduled_db:
             init_scheduled_db()
-        result = db_schedule_post(
+        result = await db_schedule_post(
             user_id=req.user_id,
             post_content=req.post_content,
             scheduled_time=req.scheduled_time,
@@ -1695,10 +1690,10 @@ def create_scheduled_post(req: SchedulePostRequest):
         return {"error": str(e), "success": False}
 
 @app.delete("/api/scheduled/{post_id}")
-def cancel_scheduled(post_id: int, user_id: str):
+async def cancel_scheduled(post_id: int, user_id: str):
     """Cancel a scheduled post"""
     try:
-        success = cancel_scheduled_post(post_id, user_id) if cancel_scheduled_post else False
+        success = await cancel_scheduled_post(post_id, user_id) if cancel_scheduled_post else False
         if success:
             return {"success": True, "message": "Post cancelled"}
         return {"success": False, "error": "Post not found or already published"}
@@ -1706,10 +1701,10 @@ def cancel_scheduled(post_id: int, user_id: str):
         return {"error": str(e), "success": False}
 
 @app.put("/api/scheduled/{post_id}")
-def reschedule(post_id: int, req: RescheduleRequest):
+async def reschedule(post_id: int, req: RescheduleRequest):
     """Reschedule a pending post"""
     try:
-        success = reschedule_post(post_id, req.user_id, req.new_time) if reschedule_post else False
+        success = await reschedule_post(post_id, req.user_id, req.new_time) if reschedule_post else False
         if success:
             return {"success": True, "message": "Post rescheduled"}
         return {"success": False, "error": "Post not found or time conflicts"}

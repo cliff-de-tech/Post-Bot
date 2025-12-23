@@ -1,17 +1,17 @@
 """
-Token Storage Service - Secure OAuth Token Management
+Token Storage Service - Secure OAuth Token Management (PostgreSQL Async)
 
 Stores encrypted LinkedIn OAuth tokens and optional GitHub access tokens.
 
 DATABASE SCHEMA (accounts table):
-    id: INTEGER PRIMARY KEY
+    id: SERIAL PRIMARY KEY
     user_id: TEXT - Clerk user ID (tenant isolation key)
     linkedin_user_urn: TEXT UNIQUE - LinkedIn person URN
     access_token: TEXT - Encrypted LinkedIn OAuth token
     refresh_token: TEXT - Encrypted OAuth refresh token (may be null)
     github_username: TEXT - GitHub username (public, not encrypted)
     github_access_token: TEXT - Encrypted GitHub PAT (optional, advanced)
-    expires_at: INTEGER - Token expiry Unix timestamp
+    expires_at: BIGINT - Token expiry Unix timestamp
     scopes: TEXT - OAuth scopes granted (comma-separated)
     is_encrypted: INTEGER - 1 if tokens are encrypted, 0 for legacy plaintext
 
@@ -31,90 +31,16 @@ SECURITY NOTES:
     - Tokens are NEVER logged
     - Tokens are NEVER returned to frontend (use mask_token for display)
     - Uses parameterized queries to prevent SQL injection
-    - Database file must be excluded from version control (.gitignore)
 """
 
-import sqlite3
-import os
-import time
-
+import logging
+from services.db import get_database
 from services.encryption import encrypt_value, decrypt_value, is_encrypted, mask_token
 
-# Database path - defaults to project root
-# SECURITY: This file contains sensitive tokens and should never be committed
-DB_PATH = os.getenv(
-    'TOKEN_DB_PATH', 
-    os.path.join(os.path.dirname(__file__), '..', 'backend_tokens.db')
-)
+logger = logging.getLogger(__name__)
 
 
-def get_conn() -> sqlite3.Connection:
-    """
-    Get a database connection, creating the directory if needed.
-    
-    Returns:
-        SQLite connection object
-    """
-    dirpath = os.path.dirname(DB_PATH)
-    if dirpath and not os.path.exists(dirpath):
-        try:
-            os.makedirs(dirpath, exist_ok=True)
-        except Exception:
-            pass  # Directory might already exist from another process
-    
-    conn = sqlite3.connect(DB_PATH)
-    return conn
-
-
-def init_db() -> None:
-    """
-    Initialize the database schema.
-    
-    Creates the accounts table if it doesn't exist.
-    Handles migrations for existing databases (adding new columns).
-    
-    SECURITY: Uses parameterized schema definition - no injection risk.
-    """
-    conn = get_conn()
-    cur = conn.cursor()
-    
-    # Create table if it doesn't exist (with new schema)
-    cur.execute('''
-    CREATE TABLE IF NOT EXISTS accounts (
-        id INTEGER PRIMARY KEY,
-        user_id TEXT,
-        linkedin_user_urn TEXT UNIQUE,
-        access_token TEXT,
-        refresh_token TEXT,
-        github_username TEXT,
-        github_access_token TEXT,
-        expires_at INTEGER,
-        scopes TEXT,
-        is_encrypted INTEGER DEFAULT 0
-    )
-    ''')
-    
-    # Migration: Add new columns if they don't exist
-    # This handles databases created before Phase 2
-    migrations = [
-        ('user_id', 'TEXT'),
-        ('github_username', 'TEXT'),
-        ('github_access_token', 'TEXT'),
-        ('scopes', 'TEXT'),
-        ('is_encrypted', 'INTEGER DEFAULT 0'),
-    ]
-    
-    for column_name, column_type in migrations:
-        try:
-            cur.execute(f'ALTER TABLE accounts ADD COLUMN {column_name} {column_type}')
-        except sqlite3.OperationalError:
-            pass  # Column already exists
-    
-    conn.commit()
-    conn.close()
-
-
-def save_token(
+async def save_token(
     linkedin_user_urn: str, 
     access_token: str, 
     refresh_token: str = None, 
@@ -141,7 +67,7 @@ def save_token(
         
     SECURITY:
         - Tokens are encrypted before storage
-        - Uses parameterized queries (? placeholders) to prevent SQL injection
+        - Uses parameterized queries to prevent SQL injection
         - Tokens are NEVER logged
         - is_encrypted flag set to 1 after encryption
     
@@ -149,9 +75,7 @@ def save_token(
         - user_id must be provided for multi-tenant operation
         - Each user's tokens are isolated by their Clerk ID
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
     # Encrypt sensitive tokens before storage
     encrypted_access = encrypt_value(access_token) if access_token else None
@@ -159,135 +83,71 @@ def save_token(
     encrypted_github = encrypt_value(github_access_token) if github_access_token else None
     
     # Check if we already have a record for this user_id
-    # This handles the case where GitHub token was saved first (creating a row with NULL linkedin_urn)
-    existing_id = None
     if user_id:
-        cur.execute('SELECT id FROM accounts WHERE user_id=?', (user_id,))
-        row = cur.fetchone()
+        row = await db.fetch_one(
+            "SELECT id FROM accounts WHERE user_id = $1", 
+            [user_id]
+        )
         if row:
-            existing_id = row[0]
-            
-    if existing_id:
-        # Update existing record for this user
-        cur.execute('''
-            UPDATE accounts SET
-                linkedin_user_urn=?,
-                access_token=?,
-                refresh_token=?,
-                expires_at=?,
-                scopes=?,
-                is_encrypted=1
-            WHERE id=?
-        ''', (linkedin_user_urn, encrypted_access, encrypted_refresh, expires_at, scopes, existing_id))
-    else:
-        # Insert new record or update if linkedin_urn conflicts (legacy behavior)
-        cur.execute('''
+            # Update existing record for this user
+            await db.execute("""
+                UPDATE accounts SET
+                    linkedin_user_urn = $1,
+                    access_token = $2,
+                    refresh_token = $3,
+                    expires_at = $4,
+                    scopes = $5,
+                    is_encrypted = 1
+                WHERE id = $6
+            """, [linkedin_user_urn, encrypted_access, encrypted_refresh, 
+                  expires_at, scopes, row['id']])
+            return
+    
+    # Insert new record or update if linkedin_urn conflicts
+    await db.execute("""
         INSERT INTO accounts (
             linkedin_user_urn, access_token, refresh_token, expires_at, 
             user_id, github_username, github_access_token, scopes, is_encrypted
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1)
         ON CONFLICT(linkedin_user_urn) DO UPDATE SET
-            access_token=excluded.access_token,
-            refresh_token=excluded.refresh_token,
-            expires_at=excluded.expires_at,
-            user_id=excluded.user_id,
-            scopes=excluded.scopes,
-            is_encrypted=1
-        ''', (
-            linkedin_user_urn, encrypted_access, encrypted_refresh, expires_at,
-            user_id, github_username, encrypted_github, scopes
-        ))
-    
-    conn.commit()
-    conn.close()
+            access_token = EXCLUDED.access_token,
+            refresh_token = EXCLUDED.refresh_token,
+            expires_at = EXCLUDED.expires_at,
+            user_id = EXCLUDED.user_id,
+            scopes = EXCLUDED.scopes,
+            is_encrypted = 1
+    """, [
+        linkedin_user_urn, encrypted_access, encrypted_refresh, expires_at,
+        user_id, github_username, encrypted_github, scopes
+    ])
 
 
-def _migrate_if_plaintext(row: dict) -> dict:
+def _process_token_row(row) -> dict:
     """
-    Auto-migrate plaintext tokens to encrypted on first access.
-    
-    Hardened implementation with atomic transaction support:
-    1. Check if migration needed (is_encrypted != 1)
-    2. Encrypt tokens in memory
-    3. Perform atomic DB update with WHERE clause safety
-    4. Return decrypted values for immediate use
+    Process a token row and decrypt tokens.
     
     Args:
-        row: Token row from database
+        row: Database row from accounts table
         
     Returns:
-        Row with decrypted tokens (ready to use)
-        
-    SECURITY: 
-        - Atomic transaction ensures all-or-nothing migration
-        - WHERE is_encrypted=0 clause prevents double-encryption race conditions
-        - Returns usable plaintext tokens to the caller while ensuring storage is secured
+        Dict with decrypted tokens
     """
-    if row.get('is_encrypted') == 1:
-        # Already encrypted, just decrypt for use
-        return {
-            **row,
-            'access_token': decrypt_value(row.get('access_token', '')),
-            'refresh_token': decrypt_value(row.get('refresh_token', '')),
-            'github_access_token': decrypt_value(row.get('github_access_token', '')),
-        }
+    if not row:
+        return None
     
-    # Legacy plaintext - migrate to encrypted
-    # Only migrate if we have sensible data to encrypt
-    if not is_encrypted(row.get('access_token', '')):
-        try:
-            # 1. Encrypt in memory first
-            enc_access = encrypt_value(row.get('access_token', ''))
-            enc_refresh = encrypt_value(row.get('refresh_token', '')) if row.get('refresh_token') else None
-            enc_github = encrypt_value(row.get('github_access_token', '')) if row.get('github_access_token') else None
-            
-            # 2. Perform atomic update
-            # We open a NEW connection to ensure isolation from any outer read transaction
-            # (though SQLite default locking usually handles this, we want to be explicit)
-            update_conn = get_conn()
-            try:
-                cur = update_conn.cursor()
-                
-                # Optimistic locking: Only update if still unencrypted
-                cur.execute('''
-                    UPDATE accounts 
-                    SET access_token=?, refresh_token=?, github_access_token=?, is_encrypted=1
-                    WHERE linkedin_user_urn=? AND (is_encrypted=0 OR is_encrypted IS NULL)
-                ''', (
-                    enc_access, 
-                    enc_refresh, 
-                    enc_github, 
-                    row['linkedin_user_urn']
-                ))
-                
-                if cur.rowcount > 0:
-                    update_conn.commit()
-                    # Migration successful
-                else:
-                    # No rows updated - likely another process beat us to it
-                    # This is fine, we just return the row as-is (database is safe)
-                    pass
-                    
-            except Exception as e:
-                update_conn.rollback()
-                # Log usage but don't crash app flow - return plaintext for this single request
-                print(f"Token migration failed: {e}")
-            finally:
-                update_conn.close()
-                
-        except Exception as e:
-            # Encryption failure (e.g., key missing in production)
-            # This should have been caught earlier by encryption module, 
-            # but as a final safety net, we catch it here.
-            print(f"Encryption failed during migration: {e}")
-
-    # Return the original plaintext values for this request so the app keeps working
-    # (The DB is either updated to encrypted, or upgrade failed but we still have data)
-    return row
+    token_data = dict(row)
+    
+    # Decrypt tokens if encrypted
+    if token_data.get('is_encrypted') == 1:
+        token_data['access_token'] = decrypt_value(token_data.get('access_token', ''))
+        token_data['refresh_token'] = decrypt_value(token_data.get('refresh_token', ''))
+        token_data['github_access_token'] = decrypt_value(token_data.get('github_access_token', ''))
+    
+    return token_data
 
 
-def get_token_by_urn(linkedin_user_urn: str) -> dict | None:
+async def get_token_by_urn(linkedin_user_urn: str) -> dict | None:
     """
     Retrieve a token by LinkedIn URN with automatic decryption.
     
@@ -300,39 +160,19 @@ def get_token_by_urn(linkedin_user_urn: str) -> dict | None:
     SECURITY: 
         - Uses parameterized query to prevent SQL injection
         - Returns decrypted tokens for internal use only
-        - Auto-migrates plaintext tokens to encrypted
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
-    cur.execute('''
+    row = await db.fetch_one("""
         SELECT linkedin_user_urn, access_token, refresh_token, expires_at, 
                user_id, github_username, github_access_token, scopes, is_encrypted
-        FROM accounts WHERE linkedin_user_urn=?
-    ''', (linkedin_user_urn,))
-    row = cur.fetchone()
-    conn.close()
+        FROM accounts WHERE linkedin_user_urn = $1
+    """, [linkedin_user_urn])
     
-    if not row:
-        return None
-    
-    token_data = {
-        'linkedin_user_urn': row[0],
-        'access_token': row[1],
-        'refresh_token': row[2],
-        'expires_at': row[3],
-        'user_id': row[4],
-        'github_username': row[5],
-        'github_access_token': row[6],
-        'scopes': row[7],
-        'is_encrypted': row[8]
-    }
-    
-    return _migrate_if_plaintext(token_data)
+    return _process_token_row(row)
 
 
-def get_token_by_user_id(user_id: str) -> dict | None:
+async def get_token_by_user_id(user_id: str) -> dict | None:
     """
     Retrieve a token by Clerk user ID with automatic decryption.
     
@@ -355,38 +195,18 @@ def get_token_by_user_id(user_id: str) -> dict | None:
         - Query explicitly filters by user_id
         - No way to access another user's tokens through this function
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
-    # TENANT ISOLATION: Query explicitly filters by user_id
-    cur.execute('''
+    row = await db.fetch_one("""
         SELECT linkedin_user_urn, access_token, refresh_token, expires_at, 
                user_id, github_username, github_access_token, scopes, is_encrypted
-        FROM accounts WHERE user_id=?
-    ''', (user_id,))
-    row = cur.fetchone()
-    conn.close()
+        FROM accounts WHERE user_id = $1
+    """, [user_id])
     
-    if not row:
-        return None
-    
-    token_data = {
-        'linkedin_user_urn': row[0],
-        'access_token': row[1],
-        'refresh_token': row[2],
-        'expires_at': row[3],
-        'user_id': row[4],
-        'github_username': row[5],
-        'github_access_token': row[6],
-        'scopes': row[7],
-        'is_encrypted': row[8]
-    }
-    
-    return _migrate_if_plaintext(token_data)
+    return _process_token_row(row)
 
 
-def get_connection_status(user_id: str) -> dict:
+async def get_connection_status(user_id: str) -> dict:
     """
     Get connection status for a user without exposing tokens.
     
@@ -400,16 +220,12 @@ def get_connection_status(user_id: str) -> dict:
         
     SECURITY: This function NEVER returns actual tokens.
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
-    cur.execute('''
+    row = await db.fetch_one("""
         SELECT linkedin_user_urn, github_username, expires_at, scopes
-        FROM accounts WHERE user_id=?
-    ''', (user_id,))
-    row = cur.fetchone()
-    conn.close()
+        FROM accounts WHERE user_id = $1
+    """, [user_id])
     
     if not row:
         return {
@@ -418,16 +234,16 @@ def get_connection_status(user_id: str) -> dict:
         }
     
     return {
-        'linkedin_connected': bool(row[0]),
-        'linkedin_urn': row[0] or '',
-        'github_connected': bool(row[1]),
-        'github_username': row[1] or '',
-        'token_expires_at': row[2],
-        'scopes': row[3] or '',
+        'linkedin_connected': bool(row['linkedin_user_urn']),
+        'linkedin_urn': row['linkedin_user_urn'] or '',
+        'github_connected': bool(row['github_username']),
+        'github_username': row['github_username'] or '',
+        'token_expires_at': row['expires_at'],
+        'scopes': row['scopes'] or '',
     }
 
 
-def save_github_token(user_id: str, github_username: str, github_access_token: str = None) -> bool:
+async def save_github_token(user_id: str, github_username: str, github_access_token: str = None) -> bool:
     """
     Save or update GitHub credentials for a user.
     
@@ -443,40 +259,35 @@ def save_github_token(user_id: str, github_username: str, github_access_token: s
         
     SECURITY: GitHub PAT is encrypted before storage.
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
     # Encrypt GitHub token if provided
     encrypted_github = encrypt_value(github_access_token) if github_access_token else None
     
     # Check if a record exists for this user_id
-    cur.execute('SELECT id FROM accounts WHERE user_id=?', (user_id,))
-    row = cur.fetchone()
+    row = await db.fetch_one(
+        "SELECT id FROM accounts WHERE user_id = $1", 
+        [user_id]
+    )
     
     if row:
         # Update existing record
-        cur.execute('''
+        await db.execute("""
             UPDATE accounts 
-            SET github_username=?, github_access_token=?
-            WHERE user_id=?
-        ''', (github_username, encrypted_github, user_id))
+            SET github_username = $1, github_access_token = $2
+            WHERE user_id = $3
+        """, [github_username, encrypted_github, user_id])
     else:
         # Insert new record (LinkedIn URN will be NULL for now)
-        # Note: linkedin_user_urn is UNIQUE, so multiple NULLs are allowed in standard SQL,
-        # but to be safe and avoid issues if we later enforce NOT NULL,
-        # we only insert if we have a user_id.
-        cur.execute('''
+        await db.execute("""
             INSERT INTO accounts (user_id, github_username, github_access_token, is_encrypted)
-            VALUES (?, ?, ?, 1)
-        ''', (user_id, github_username, encrypted_github))
+            VALUES ($1, $2, $3, 1)
+        """, [user_id, github_username, encrypted_github])
     
-    conn.commit()
-    conn.close()
     return True
 
 
-def delete_token_by_user_id(user_id: str) -> bool:
+async def delete_token_by_user_id(user_id: str) -> bool:
     """
     Delete a user's token record (disconnect LinkedIn).
     
@@ -492,25 +303,21 @@ def delete_token_by_user_id(user_id: str) -> bool:
         - Enforces tenant isolation (can only delete own token)
         - No cross-user deletion possible
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
     try:
-        # Delete the token record for this user
-        cur.execute('DELETE FROM accounts WHERE user_id=?', (user_id,))
-        deleted = cur.rowcount > 0
-        conn.commit()
-        return deleted
+        result = await db.execute(
+            "DELETE FROM accounts WHERE user_id = $1", 
+            [user_id]
+        )
+        # result is the number of rows affected
+        return result > 0 if isinstance(result, int) else True
     except Exception as e:
-        conn.rollback()
-        print(f"Error deleting token: {e}")
+        logger.error(f"Error deleting token: {e}")
         return False
-    finally:
-        conn.close()
 
 
-def get_all_tokens() -> list[dict]:
+async def get_all_tokens() -> list[dict]:
     """
     Retrieve all stored tokens (ADMIN/MIGRATION USE ONLY).
     
@@ -525,37 +332,12 @@ def get_all_tokens() -> list[dict]:
         - New code should use get_token_by_user_id
         - Consider adding admin auth check in future
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
-    cur.execute('''
+    rows = await db.fetch_all("""
         SELECT linkedin_user_urn, access_token, refresh_token, expires_at,
                user_id, github_username, github_access_token, scopes, is_encrypted
         FROM accounts
-    ''')
-    rows = cur.fetchall()
-    conn.close()
+    """)
     
-    results = []
-    for r in rows:
-        token_data = {
-            'linkedin_user_urn': r[0], 
-            'access_token': r[1], 
-            'refresh_token': r[2], 
-            'expires_at': r[3],
-            'user_id': r[4],
-            'github_username': r[5],
-            'github_access_token': r[6],
-            'scopes': r[7],
-            'is_encrypted': r[8]
-        }
-        results.append(_migrate_if_plaintext(token_data))
-    
-    return results
-
-
-if __name__ == '__main__':
-    # CLI initialization for development
-    init_db()
-    print(f'Initialized token DB at {DB_PATH}')
+    return [_process_token_row(row) for row in rows]

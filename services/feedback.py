@@ -1,58 +1,19 @@
 """
-Feedback Service
-Collects user feedback and stores in SQLite database.
+Feedback Service (PostgreSQL Async)
+
+Collects user feedback and stores in PostgreSQL.
 Optionally sends feedback to admin email.
 """
 
-import sqlite3
-import os
 import time
+import logging
 from typing import Optional
-import threading
+from services.db import get_database
+
+logger = logging.getLogger(__name__)
 
 
-# Database path
-FEEDBACK_DB_PATH = os.getenv('FEEDBACK_DB_PATH', 
-                              os.path.join(os.path.dirname(__file__), '..', 'feedback.db'))
-
-_local = threading.local()
-
-
-def get_conn():
-    """Get thread-local database connection"""
-    if not hasattr(_local, 'conn') or _local.conn is None:
-        _local.conn = sqlite3.connect(FEEDBACK_DB_PATH, check_same_thread=False)
-    return _local.conn
-
-
-def init_db():
-    """Initialize the feedback database"""
-    conn = get_conn()
-    cur = conn.cursor()
-    
-    cur.execute('''
-    CREATE TABLE IF NOT EXISTS feedback (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT NOT NULL,
-        rating INTEGER,
-        liked TEXT,
-        improvements TEXT,
-        suggestions TEXT,
-        created_at INTEGER NOT NULL,
-        email_sent INTEGER DEFAULT 0
-    )
-    ''')
-    
-    # Create index for faster queries
-    cur.execute('''
-    CREATE INDEX IF NOT EXISTS idx_feedback_user 
-    ON feedback (user_id, created_at DESC)
-    ''')
-    
-    conn.commit()
-
-
-def save_feedback(
+async def save_feedback(
     user_id: str,
     rating: int,
     liked: Optional[str] = None,
@@ -72,25 +33,27 @@ def save_feedback(
     Returns:
         dict with success status and feedback_id
     """
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+    db = get_database()
     
     try:
-        cur.execute('''
-        INSERT INTO feedback (user_id, rating, liked, improvements, suggestions, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
+        await db.execute("""
+            INSERT INTO feedback (user_id, rating, liked, improvements, suggestions, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        """, [
             user_id,
             rating,
             liked or '',
             improvements or '',
             suggestions or '',
             int(time.time())
-        ))
+        ])
         
-        conn.commit()
-        feedback_id = cur.lastrowid
+        # Get the ID of the inserted feedback
+        row = await db.fetch_one(
+            "SELECT id FROM feedback WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
+            [user_id]
+        )
+        feedback_id = row['id'] if row else None
         
         return {
             'success': True,
@@ -98,54 +61,51 @@ def save_feedback(
             'message': 'Thank you for your feedback!'
         }
     except Exception as e:
+        logger.error(f"Error saving feedback: {e}")
         return {
             'success': False,
             'error': str(e)
         }
 
 
-def get_all_feedback(limit: int = 100) -> list:
-    """Get all feedback entries (for admin use)"""
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+async def get_all_feedback(limit: int = 100) -> list:
+    """Get all feedback entries (for admin use)."""
+    db = get_database()
     
-    cur.execute('''
-    SELECT id, user_id, rating, liked, improvements, suggestions, created_at
-    FROM feedback
-    ORDER BY created_at DESC
-    LIMIT ?
-    ''', (limit,))
-    
-    rows = cur.fetchall()
+    rows = await db.fetch_all("""
+        SELECT id, user_id, rating, liked, improvements, suggestions, created_at
+        FROM feedback
+        ORDER BY created_at DESC
+        LIMIT $1
+    """, [limit])
     
     return [
         {
-            'id': row[0],
-            'user_id': row[1],
-            'rating': row[2],
-            'liked': row[3],
-            'improvements': row[4],
-            'suggestions': row[5],
-            'created_at': row[6]
+            'id': row['id'],
+            'user_id': row['user_id'],
+            'rating': row['rating'],
+            'liked': row['liked'],
+            'improvements': row['improvements'],
+            'suggestions': row['suggestions'],
+            'created_at': row['created_at']
         }
         for row in rows
     ]
 
 
-def get_user_feedback_count(user_id: str) -> int:
-    """Check how many times a user has submitted feedback"""
-    init_db()
-    conn = get_conn()
-    cur = conn.cursor()
+async def get_user_feedback_count(user_id: str) -> int:
+    """Check how many times a user has submitted feedback."""
+    db = get_database()
     
-    cur.execute('''
-    SELECT COUNT(*) FROM feedback WHERE user_id = ?
-    ''', (user_id,))
+    row = await db.fetch_one(
+        "SELECT COUNT(*) as count FROM feedback WHERE user_id = $1",
+        [user_id]
+    )
     
-    return cur.fetchone()[0]
+    return row['count'] if row else 0
 
 
-def has_user_submitted_feedback(user_id: str) -> bool:
-    """Check if user has ever submitted feedback"""
-    return get_user_feedback_count(user_id) > 0
+async def has_user_submitted_feedback(user_id: str) -> bool:
+    """Check if user has ever submitted feedback."""
+    count = await get_user_feedback_count(user_id)
+    return count > 0

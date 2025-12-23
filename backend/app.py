@@ -1,5 +1,16 @@
 import os
 import sys
+import logging
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+# Configure structured logging for production observability
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger("api")
 
 # Load environment variables from .env file in project root
 from dotenv import load_dotenv
@@ -8,143 +19,82 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 # Ensure parent project path is importable so we can reuse `bot.py`
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from fastapi import FastAPI, Depends
-from fastapi import Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from uuid import uuid4
 from pydantic import BaseModel
 from typing import Optional
 
-# Import JWT auth middleware
-try:
-    from middleware.clerk_auth import get_current_user, require_auth
-except ImportError:
-    get_current_user = None
-    require_auth = None
+# =============================================================================
+# SERVICE IMPORTS - FAIL FAST (No defensive try/except)
+# If any service is missing or broken, the app MUST crash on startup
+# =============================================================================
 
-try:
-    # Import core functions from the refactored services
-    from services.ai_service import generate_post_with_ai
-except ImportError:
-    generate_post_with_ai = None
+# Auth middleware
+from middleware.clerk_auth import get_current_user, require_auth
 
-# Import GitHub service
-try:
-    from services.github_activity import get_user_activity
-except ImportError:
-    get_user_activity = None
+# Core AI service
+from services.ai_service import generate_post_with_ai
 
-# Import Unsplash service (if available in utils or services)
-try:
-    from services.image_service import get_relevant_image
-except ImportError:
-    # Basic fallback
-    get_relevant_image = None
+# GitHub service
+from services.github_activity import get_user_activity, get_repo_details
 
-# Import LinkedIn service
-try:
-    from services.linkedin_service import post_to_linkedin, upload_image_to_linkedin
-except ImportError:
-    post_to_linkedin = None
-    upload_image_to_linkedin = None
+# Image service
+from services.image_service import get_relevant_image
 
-# Import User Settings service
-try:
-    from services.user_settings import get_user_settings, save_user_settings
-except ImportError:
-    get_user_settings = None
-    save_user_settings = None
+# LinkedIn service
+from services.linkedin_service import post_to_linkedin, upload_image_to_linkedin
 
-# Import token functions
-try:
-    from services.token_store import get_token_by_user_id
-except ImportError:
-    get_token_by_user_id = None
+# User settings service
+from services.user_settings import get_user_settings, save_user_settings
 
-# Import Post History service
-try:
-    from services.post_history import save_post, get_user_posts, get_user_stats
-except ImportError:
-    save_post = None
-    get_user_posts = None
-    get_user_stats = None
+# Token store
+from services.token_store import get_token_by_user_id, get_all_tokens
 
-# Import Rate Limiter
-try:
-    from services.rate_limiter import check_rate_limit, get_rate_limit_status
-except ImportError:
-    check_rate_limit = None
-    get_rate_limit_status = None
+# Auth service
+from services.auth_service import (
+    get_access_token_for_urn,
+    get_authorize_url,
+    exchange_code_for_token,
+    get_authorize_url_for_user,
+    exchange_code_for_token_with_user
+)
 
-try:
-    # Import core functions from the refactored services
-    # from services.ai_service import generate_post_with_ai # Already imported above
-    # from services.image_service import get_relevant_image # Already imported above
-    # from services.linkedin_service import upload_image_to_linkedin, post_to_linkedin # Already imported above
-    from services.token_store import get_all_tokens, init_db
-    from services.auth_service import (
-        get_access_token_for_urn,
-        get_authorize_url,
-        exchange_code_for_token,
-        get_authorize_url_for_user,
-        exchange_code_for_token_with_user
-    )
-    from services.user_settings import init_db as init_settings_db, save_user_settings # get_user_settings already imported
-    from services.post_history import (
-        init_db as init_post_history_db,
-        # save_post, # Already imported above
-        # get_user_posts, # Already imported above
-        update_post_status,
-        delete_post,
-        get_user_usage,
-        can_user_generate_posts,
-        can_user_schedule_post
-    )
+# Post history service
+from services.post_history import (
+    save_post,
+    get_user_posts,
+    get_user_stats,
+    update_post_status,
+    delete_post,
+    get_user_usage,
+    can_user_generate_posts,
+    can_user_schedule_post
+)
 
-    from services.github_activity import get_user_activity, get_repo_details
-    from services.email_service import email_service
-    from services.scheduled_posts import (
-        schedule_post as db_schedule_post,
-        get_scheduled_posts,
-        cancel_scheduled_post,
-        reschedule_post,
-        init_db as init_scheduled_db
-    )
-    
-    # Import Feedback service
-    from services.feedback import (
-        save_feedback,
-        has_user_submitted_feedback,
-        get_all_feedback,
-        init_db as init_feedback_db
-    )
-except Exception:
-    generate_post_with_ai = None
-    get_relevant_image = None
-    upload_image_to_linkedin = None
-    post_to_linkedin = None
-    get_all_tokens = None
-    get_access_token_for_urn = None
-    get_authorize_url = None
-    exchange_code_for_token = None
-    init_db = None
-    init_settings_db = None
-    save_user_settings = None
-    get_user_settings = None
-    init_post_history_db = None
-    save_post = None
-    get_user_posts = None
-    update_post_status = None
-    delete_post = None
-    get_user_stats = None
-    get_user_activity = None
-    get_repo_details = None
-    email_service = None
-    save_feedback = None
-    has_user_submitted_feedback = None
-    get_all_feedback = None
-    init_feedback_db = None
+# Rate limiter
+from services.rate_limiter import check_rate_limit, get_rate_limit_status
+
+# Email service
+from services.email_service import email_service
+
+# Scheduled posts
+from services.scheduled_posts import (
+    schedule_post as db_schedule_post,
+    get_scheduled_posts,
+    cancel_scheduled_post,
+    reschedule_post
+)
+
+# Feedback service
+from services.feedback import (
+    save_feedback,
+    has_user_submitted_feedback,
+    get_all_feedback
+)
+
+logger.info("All services imported successfully")
 
 # =============================================================================
 # RATE LIMITING
@@ -195,16 +145,16 @@ def validate_environment():
             missing_optional.append(f"  - {var}: {purpose}")
     
     if missing_required:
-        print("\n⚠️  WARNING: Missing REQUIRED environment variables:")
+        logger.warning("Missing REQUIRED environment variables:")
         for msg in missing_required:
-            print(msg)
-        print("  Some features will not work until these are set.\n")
+            logger.warning(msg)
+        logger.warning("Some features will not work until these are set.")
     
     if missing_optional:
-        print("\n💡 TIP: Missing OPTIONAL environment variables:")
+        logger.info("Missing OPTIONAL environment variables:")
         for msg in missing_optional:
-            print(msg)
-        print("  These are recommended for full functionality.\n")
+            logger.warning(msg)
+        logger.info("These are recommended for full functionality.")
 
 # Run validation on import
 validate_environment()
@@ -238,6 +188,19 @@ app = FastAPI(
         "name": "MIT",
     },
 )
+
+# =============================================================================
+# GLOBAL EXCEPTION HANDLER
+# =============================================================================
+# Catches all unhandled exceptions and returns clean JSON 500 response
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for unhandled errors."""
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal Server Error", "detail": str(exc)},
+    )
 
 # =============================================================================
 # DATABASE LIFECYCLE HOOKS (PostgreSQL Async)
@@ -288,10 +251,10 @@ try:
     app.include_router(webhooks_router)  # /webhooks/* endpoints (Clerk, etc.)
     
     ROUTERS_ENABLED = True
-    print("✅ Modular routers loaded successfully")
+    logger.info("Modular routers loaded successfully")
 except ImportError as e:
     ROUTERS_ENABLED = False
-    print(f"⚠️ Routers not loaded (using legacy endpoints): {e}")
+    logger.warning("Routers not loaded, using legacy endpoints", exc_info=True)
 
 
 class GenerateRequest(BaseModel):
@@ -362,11 +325,11 @@ Suggestions: {req.suggestions or 'None'}
                     body=email_body
                 )
             except Exception as e:
-                print(f"Failed to send feedback email: {e}")
+                logger.error("Failed to send feedback email", exc_info=True)
         
         return result
     except Exception as e:
-        print(f"Error saving feedback: {e}")
+        logger.error("Error saving feedback", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -423,7 +386,7 @@ async def submit_contact(req: ContactRequest):
                 )
                 email_sent = True
             except Exception as e:
-                print(f"Failed to send contact email: {e}")
+                logger.error("Failed to send contact email", exc_info=True)
         
         return {
             "success": True,
@@ -432,7 +395,7 @@ async def submit_contact(req: ContactRequest):
             "message": f"Support ticket #{ticket_id} created successfully"
         }
     except Exception as e:
-        print(f"Error creating support ticket: {e}")
+        logger.error("Error creating support ticket", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -475,7 +438,7 @@ async def generate_preview(
                 groq_api_key = settings.get('groq_api_key')
         except Exception as e:
             # SECURITY: Don't log the actual key, just the error type
-            print(f"Failed to get user settings: {type(e).__name__}")
+            logger.error("Failed to get user settings", exc_info=True)
     
     post = generate_post_with_ai(req.context, groq_api_key=groq_api_key)
     return {"post": post}
@@ -495,7 +458,7 @@ async def publish(req: PostRequest):
             if user_settings:
                 groq_api_key = user_settings.get('groq_api_key')
         except Exception as e:
-            print(f"Failed to get user settings: {e}")
+            logger.error("Failed to get user settings", exc_info=True)
 
     post = generate_post_with_ai(req.context, groq_api_key=groq_api_key)
     if not post:
@@ -525,7 +488,7 @@ async def publish(req: PostRequest):
                     post_to_linkedin(post, image_asset, access_token=token, linkedin_user_urn=linkedin_urn)
                 return {"status": "posted", "post": post, "image_asset": image_asset, "account": linkedin_urn}
         except Exception as e:
-            print(f"Failed to use user token: {e}")
+            logger.error("Failed to use user token", exc_info=True)
 
     # Fallback: use first stored account or environment-based service
     accounts = []
@@ -601,7 +564,7 @@ async def linkedin_start(redirect_uri: str, user_id: str = None):
                 )
                 return RedirectResponse(url)
         except Exception as e:
-            print(f"Failed to get user settings: {e}")
+            logger.error("Failed to get user settings", exc_info=True)
     
     # Fallback to global credentials
     if not get_authorize_url:
@@ -651,7 +614,7 @@ async def linkedin_callback(code: str = None, state: str = None, redirect_uri: s
                  if parts[0]: user_id = parts[0]
 
         except Exception as e:
-            print(f"Error decoding state: {e}")
+            logger.error("Error decoding state", exc_info=True)
             # Try legacy format (raw string)
             if state and ':' in state:
                 parts = state.split(':', 1)
@@ -693,8 +656,8 @@ async def linkedin_callback(code: str = None, state: str = None, redirect_uri: s
         
     except Exception as e:
         import traceback
-        print(f"OAuth Error: {e}")
-        print(traceback.format_exc())
+        logger.error("OAuth Error", exc_info=True)
+        # Stack trace already captured by exc_info=True
         error_msg = str(e).replace(" ", "_")[:50]  # Sanitize for URL
         return RedirectResponse(f"{frontend_redirect}?linkedin_success=false&error={error_msg}")
 
@@ -814,8 +777,8 @@ async def github_oauth_callback(code: str = None, state: str = None, redirect_ur
         }
     except Exception as e:
         import traceback
-        print(f"GitHub OAuth Error: {e}")
-        print(traceback.format_exc())
+        logger.error("GitHub OAuth Error", exc_info=True)
+        # Stack trace already captured by exc_info=True
         return {"error": str(e), "status": "failed"}
 
 
@@ -1217,7 +1180,7 @@ async def scan_github_activity(req: ScanRequest):
             if settings:
                 github_username = settings.get('github_username')
         except Exception as e:
-            print(f"Error getting user settings: {e}")
+            logger.error("Error getting user settings", exc_info=True)
     
     # Fallback to env var
     if not github_username:
@@ -1234,7 +1197,7 @@ async def scan_github_activity(req: ScanRequest):
             if token_data:
                 github_token = token_data.get('github_access_token')
         except Exception as e:
-            print(f"Error getting user token: {e}")
+            logger.error("Error getting user token", exc_info=True)
 
     try:
         # Get activities (passing user token if available)
@@ -1317,7 +1280,7 @@ async def get_usage(user_id: str, timezone: str = "UTC"):
         usage = await get_user_usage(user_id, tier, timezone)
         return {"success": True, "usage": usage, **usage}  # Spread usage for backwards compat
     except Exception as e:
-        print(f"Error getting usage: {e}")
+        logger.error("Error getting usage", exc_info=True)
         return {"error": str(e)}
 
 
@@ -1352,7 +1315,7 @@ async def generate_batch_posts(req: BatchGenerateRequest):
                     "failed_count": 0
                 }
         except Exception as e:
-            print(f"Error checking usage limits: {e}")
+            logger.error("Error checking usage limits", exc_info=True)
             # Continue without limit check if there's an error
     
     # Get user's Groq API key
@@ -1387,7 +1350,7 @@ async def generate_batch_posts(req: BatchGenerateRequest):
                     'image_url': None
                 })
         except Exception as e:
-            print(f"Error generating post for activity: {e}")
+            logger.error("Error generating post for activity", exc_info=True)
             generated_posts.append({
                 'id': f"post_{idx}_{activity.get('id', '')}",
                 'activity_id': activity.get('id'),
@@ -1452,7 +1415,7 @@ async def get_image_options(req: ImagePreviewRequest):
                         'download_url': data['urls']['regular']
                     })
             except Exception as e:
-                print(f"Error fetching image for term '{term}': {e}")
+                logger.error(f"Error fetching image for term: {term}", exc_info=True)
         
         return {
             "success": True,
@@ -1550,7 +1513,7 @@ async def publish_full(req: FullPublishRequest):
             if token_data:
                 access_token = token_data.get('access_token')
         except Exception as e:
-            print(f"Error getting user credentials: {e}")
+            logger.error("Error getting user credentials", exc_info=True)
     
     # Fallback to environment variables
     if not access_token:
@@ -1585,7 +1548,7 @@ async def publish_full(req: FullPublishRequest):
                     status='published'
                 )
             except Exception as e:
-                print(f"Error saving to post history: {e}")
+                logger.error("Error saving to post history", exc_info=True)
         
         return {
             "success": True,
@@ -1628,7 +1591,7 @@ async def get_stats(user_id: str):
         stats = await get_user_stats(user_id)
         return {"success": True, "stats": stats}
     except Exception as e:
-        print(f"Error fetching stats: {e}")
+        logger.error("Error fetching stats", exc_info=True)
         return {"error": str(e)}
 
 

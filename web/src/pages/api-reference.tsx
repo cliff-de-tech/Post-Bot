@@ -127,19 +127,14 @@ export default function APIReference() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <header className="relative bg-white/10 backdrop-blur-lg border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-end gap-4">
-          <ThemeToggle />
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <SEOHead
         title="API Reference - LinkedIn Post Bot"
         description="Complete API documentation for LinkedIn Post Bot. Integrate and automate your LinkedIn content creation."
       />
 
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="relative bg-white/10 dark:bg-gray-800/50 backdrop-blur-lg border-b border-white/10 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -151,29 +146,32 @@ export default function APIReference() {
               LinkedIn Post Bot
             </span>
           </Link>
-          <button
-            onClick={() => router.back()}
-            className="text-gray-600 hover:text-gray-900 font-medium"
-          >
-            ← Back
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium"
+            >
+              ← Back
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">API Reference</h1>
-          <p className="text-lg text-gray-600 mb-6">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">API Reference</h1>
+          <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
             Complete documentation for integrating with LinkedIn Post Bot API
           </p>
 
-          <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-lg">
-            <p className="text-blue-900 font-medium mb-2">Base URL</p>
-            <code className="bg-white px-3 py-1 rounded text-blue-600 font-mono">
+          <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-600 p-6 rounded-r-lg">
+            <p className="text-blue-900 dark:text-blue-200 font-medium mb-2">Base URL</p>
+            <code className="bg-white dark:bg-gray-800 px-3 py-1 rounded text-blue-600 dark:text-blue-400 font-mono">
               http://localhost:8000
             </code>
-            <p className="text-sm text-blue-800 mt-2">
-              Production: <code className="bg-white px-2 py-0.5 rounded">https://api.linkedin-post-bot.com</code>
+            <p className="text-sm text-blue-800 dark:text-blue-300 mt-2">
+              Production: <code className="bg-white dark:bg-gray-800 px-2 py-0.5 rounded">https://api.linkedin-post-bot.com</code>
             </p>
           </div>
         </div>
@@ -182,27 +180,27 @@ export default function APIReference() {
           {endpoints.map((endpoint, index) => (
             <div
               key={index}
-              className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all"
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${getMethodColor(endpoint.method)}`}>
                     {endpoint.method}
                   </span>
-                  <code className="text-gray-900 font-mono text-sm bg-gray-100 px-3 py-1 rounded">
+                  <code className="text-gray-900 dark:text-gray-100 font-mono text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded">
                     {endpoint.path}
                   </code>
                 </div>
               </div>
 
-              <p className="text-gray-700 mb-4">{endpoint.description}</p>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">{endpoint.description}</p>
 
               {endpoint.params && (
                 <div className="mb-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Parameters:</h4>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Parameters:</h4>
                   <ul className="space-y-1">
                     {endpoint.params.map((param, idx) => (
-                      <li key={idx} className="text-sm text-gray-600 font-mono ml-4">
+                      <li key={idx} className="text-sm text-gray-600 dark:text-gray-400 font-mono ml-4">
                         • {param}
                       </li>
                     ))}
@@ -212,7 +210,7 @@ export default function APIReference() {
 
               {endpoint.body && (
                 <div className="mb-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Request Body:</h4>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Request Body:</h4>
                   <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
                     {endpoint.body}
                   </pre>
@@ -221,7 +219,7 @@ export default function APIReference() {
 
               {endpoint.response && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Response:</h4>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Response:</h4>
                   <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm">
                     {endpoint.response}
                   </pre>
@@ -246,23 +244,23 @@ export default function APIReference() {
         </div>
 
         {/* Rate Limits */}
-        <div className="mt-8 bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Rate Limits</h2>
+        <div className="mt-8 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-100 dark:border-gray-700">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Rate Limits</h2>
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="text-3xl font-bold text-blue-600 mb-2">100</div>
-              <div className="text-sm text-gray-600">Requests per minute</div>
-              <div className="text-xs text-gray-500 mt-1">Free tier</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Requests per minute</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Free tier</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="text-3xl font-bold text-purple-600 mb-2">1000</div>
-              <div className="text-sm text-gray-600">Requests per minute</div>
-              <div className="text-xs text-gray-500 mt-1">Pro tier</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Requests per minute</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pro tier</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="text-3xl font-bold text-green-600 mb-2">Custom</div>
-              <div className="text-sm text-gray-600">Unlimited requests</div>
-              <div className="text-xs text-gray-500 mt-1">Enterprise tier</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Unlimited requests</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enterprise tier</div>
             </div>
           </div>
         </div>

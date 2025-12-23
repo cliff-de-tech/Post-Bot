@@ -371,6 +371,76 @@ def get_feedback_status(user_id: str):
     return {"has_submitted": has_user_submitted_feedback(user_id)}
 
 
+# =============================================================================
+# CONTACT/SUPPORT ENDPOINTS
+# =============================================================================
+
+class ContactRequest(BaseModel):
+    """Request model for contact form submission."""
+    to: str
+    from_email: str = None  # Renamed from 'from' since it's a Python keyword
+    subject: str
+    body: str
+    name: str
+
+
+@app.post("/api/contact")
+async def submit_contact(req: ContactRequest):
+    """Submit a support/contact form request.
+    
+    Stores the ticket locally and optionally sends an email notification.
+    Returns success even if email fails (ticket is still logged).
+    """
+    import json
+    from datetime import datetime
+    
+    try:
+        # Create tickets directory if it doesn't exist
+        tickets_dir = os.path.join(os.path.dirname(__file__), "data", "tickets")
+        os.makedirs(tickets_dir, exist_ok=True)
+        
+        # Generate ticket data
+        ticket_id = str(uuid4())[:8].upper()
+        ticket = {
+            "id": ticket_id,
+            "name": req.name,
+            "email": req.from_email,
+            "subject": req.subject,
+            "body": req.body,
+            "to": req.to,
+            "created_at": datetime.now().isoformat(),
+            "status": "open"
+        }
+        
+        # Save ticket to file
+        ticket_file = os.path.join(tickets_dir, f"ticket_{ticket_id}.json")
+        with open(ticket_file, "w") as f:
+            json.dump(ticket, f, indent=2)
+        
+        # Try to send email notification if email service is available
+        email_sent = False
+        if email_service:
+            try:
+                email_service.send_email(
+                    to_email=req.to,
+                    subject=req.subject,
+                    body=f"Support ticket from {req.name} ({req.from_email}):\n\n{req.body}"
+                )
+                email_sent = True
+            except Exception as e:
+                print(f"Failed to send contact email: {e}")
+        
+        return {
+            "success": True,
+            "ticket_id": ticket_id,
+            "email_sent": email_sent,
+            "message": f"Support ticket #{ticket_id} created successfully"
+        }
+    except Exception as e:
+        print(f"Error creating support ticket: {e}")
+        return {"success": False, "error": str(e)}
+
+
 @app.post("/generate-preview")
 async def generate_preview(
     req: GenerateRequest,

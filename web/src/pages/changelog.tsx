@@ -78,8 +78,8 @@ export default function Changelog() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <SEOHead 
-        title="Changelog - LinkedIn Post Bot"
-        description="Stay updated with the latest features and improvements to LinkedIn Post Bot"
+        title="Changelog - Post Bot"
+        description="Stay updated with the latest features and improvements to Post Bot"
       />
       
       {/* Header */}
@@ -92,7 +92,7 @@ export default function Changelog() {
               </svg>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LinkedIn Post Bot
+              Post Bot
             </span>
           </Link>
           <button

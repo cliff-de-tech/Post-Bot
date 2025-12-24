@@ -15,7 +15,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300 overflow-x-hidden selection:bg-purple-500/30">
       <SEOHead
-        title="LinkedIn Post Bot - Turn Commits into Authority"
+        title="Post Bot - Turn Commits into Authority"
         description="The AI agent that writes engaging LinkedIn posts from your GitHub activity. 10x faster."
       />
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Generate Favicon</title>
+    <title>Download Favicons</title>
     <style>
       body {
         display: flex;
@@ -11,38 +11,79 @@
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        background: #f3f4f6;
+        background: #1a1a2e;
         font-family: system-ui, -apple-system, sans-serif;
+        color: white;
+      }
+      h1 { color: #9333EA; }
+      .buttons {
+        display: flex;
+        gap: 20px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      button {
+        padding: 15px 30px;
+        font-size: 16px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #2563EB, #9333EA);
+        color: white;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 20px rgba(147, 51, 234, 0.4);
+      }
+      .preview {
+        display: flex;
+        gap: 20px;
+        margin: 30px 0;
+        align-items: center;
       }
       canvas {
-        border: 2px solid #ddd;
-        margin: 10px;
-        background: white;
-      }
-      .info {
-        margin-top: 20px;
-        padding: 20px;
-        background: white;
+        border: 2px solid #333;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
+      .label { font-size: 12px; color: #888; text-align: center; }
     </style>
   </head>
   <body>
-    <h1>Favicon Generator</h1>
-    <div>
-      <canvas id="favicon-16" width="16" height="16"></canvas>
-      <canvas id="favicon-32" width="32" height="32"></canvas>
-      <canvas id="favicon-180" width="180" height="180"></canvas>
+    <h1>⚡ PostBot Favicon Generator</h1>
+    <p>Click a button to download the favicon</p>
+    
+    <div class="preview">
+      <div>
+        <canvas id="favicon-16" width="16" height="16"></canvas>
+        <div class="label">16x16</div>
+      </div>
+      <div>
+        <canvas id="favicon-32" width="32" height="32"></canvas>
+        <div class="label">32x32</div>
+      </div>
+      <div>
+        <canvas id="favicon-180" width="180" height="180"></canvas>
+        <div class="label">180x180</div>
+      </div>
+      <div>
+        <canvas id="favicon-192" width="192" height="192"></canvas>
+        <div class="label">192x192</div>
+      </div>
+      <div>
+        <canvas id="favicon-512" width="512" height="512"></canvas>
+        <div class="label">512x512</div>
+      </div>
     </div>
-    <div class="info">
-      <p><strong>Instructions:</strong></p>
-      <ol>
-        <li>Right-click on each canvas</li>
-        <li>Select "Save image as..."</li>
-        <li>Save as: favicon-16x16.png, favicon-32x32.png, apple-touch-icon.png</li>
-        <li>Place files in the /public folder</li>
-      </ol>
+
+    <div class="buttons">
+      <button onclick="download('favicon-16', 'favicon-16x16.png')">📥 favicon-16x16.png</button>
+      <button onclick="download('favicon-32', 'favicon-32x32.png')">📥 favicon-32x32.png</button>
+      <button onclick="download('favicon-32', 'favicon.ico')">📥 favicon.ico</button>
+      <button onclick="download('favicon-180', 'apple-touch-icon.png')">📥 apple-touch-icon.png</button>
+      <button onclick="download('favicon-192', 'android-chrome-192x192.png')">📥 android-chrome-192x192.png</button>
+      <button onclick="download('favicon-512', 'android-chrome-512x512.png')">📥 android-chrome-512x512.png</button>
     </div>
 
     <script>
@@ -89,10 +130,20 @@
         ctx.stroke();
       }
       
+      function download(canvasId, filename) {
+        const canvas = document.getElementById(canvasId);
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }
+      
       // Draw all sizes
       drawFavicon('favicon-16', 16);
       drawFavicon('favicon-32', 32);
       drawFavicon('favicon-180', 180);
+      drawFavicon('favicon-192', 192);
+      drawFavicon('favicon-512', 512);
     </script>
   </body>
 </html>

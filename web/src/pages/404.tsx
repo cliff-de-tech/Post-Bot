@@ -25,7 +25,7 @@ export default function Custom404() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
       <SEOHead 
-        title="404 - Page Not Found | LinkedIn Post Bot"
+        title="404 - Page Not Found | Post Bot"
         description="The page you're looking for doesn't exist"
       />
       

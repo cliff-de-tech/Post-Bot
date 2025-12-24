@@ -9,8 +9,8 @@ export default function Privacy() {
   return (
     <div className="min-h-screen bg-transparent text-text-primary">
       <SEOHead
-        title="Privacy Policy - LinkedIn Post Bot"
-        description="Privacy policy for LinkedIn Post Bot. Learn how we handle your data."
+        title="Privacy Policy - Post Bot"
+        description="Privacy policy for Post Bot. Learn how we handle your data."
       />
 
       {/* Header */}
@@ -23,7 +23,7 @@ export default function Privacy() {
               </svg>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LinkedIn Post Bot
+              Post Bot
             </span>
           </Link>
           <div className="flex items-center gap-4">
@@ -47,7 +47,7 @@ export default function Privacy() {
             <section>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Introduction</h2>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                LinkedIn Post Bot ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our service.
+                Post Bot ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our service.
               </p>
             </section>
 

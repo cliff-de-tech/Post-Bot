@@ -9,7 +9,7 @@ export default function Security() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <SEOHead 
-        title="Security - LinkedIn Post Bot"
+        title="Security - Post Bot"
         description="Learn about our security practices and how we protect your data"
       />
       
@@ -23,7 +23,7 @@ export default function Security() {
               </svg>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LinkedIn Post Bot
+              Post Bot
             </span>
           </Link>
           <div className="flex items-center gap-4">

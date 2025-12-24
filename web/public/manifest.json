@@ -1,7 +1,7 @@
 {
-    "name": "LinkedIn Post Bot",
+    "name": "Post Bot",
     "short_name": "PostBot",
-    "description": "Transform your GitHub activity into engaging LinkedIn posts automatically",
+    "description": "Transform your development activity into engaging social media posts automatically",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#1F2937",

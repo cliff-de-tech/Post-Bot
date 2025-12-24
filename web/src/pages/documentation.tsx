@@ -25,8 +25,8 @@ export default function Documentation() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
       </div>
       <SEOHead
-        title="Documentation - LinkedIn Post Bot"
-        description="Complete guide to setting up and using LinkedIn Post Bot"
+        title="Documentation - Post Bot"
+        description="Complete guide to setting up and using Post Bot"
       />
 
       <header className="relative bg-white/5 backdrop-blur-lg border-b border-white/10">
@@ -38,7 +38,7 @@ export default function Documentation() {
               </svg>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LinkedIn Post Bot
+              Post Bot
             </span>
           </Link>
           <div className="flex items-center gap-4">
@@ -76,7 +76,7 @@ export default function Documentation() {
                   <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">🚀 Getting Started</h1>
 
                   <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 p-6 mb-6">
-                    <p className="text-blue-900 dark:text-blue-200 font-medium">Welcome! This guide will help you set up LinkedIn Post Bot in about 10 minutes.</p>
+                    <p className="text-blue-900 dark:text-blue-200 font-medium">Welcome! This guide will help you set up Post Bot in about 10 minutes.</p>
                   </div>
 
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-8 mb-4">What You'll Need</h2>
@@ -174,7 +174,7 @@ export default function Documentation() {
                       <div>
                         Fill in the required fields:
                         <ul className="mt-2 ml-4 text-sm">
-                          <li>• <strong>App name:</strong> "LinkedIn Post Bot" (or your choice)</li>
+                          <li>• <strong>App name:</strong> "Post Bot" (or your choice)</li>
                           <li>• <strong>LinkedIn Page:</strong> Select or create a company page</li>
                           <li>• <strong>Privacy policy URL:</strong> Can use your website or placeholder</li>
                           <li>• <strong>App logo:</strong> Upload any square image</li>

@@ -1,6 +1,6 @@
-# LinkedIn Post Bot
+# Post Bot
 
-> **Transform your GitHub activity into professional LinkedIn content — powered by AI, designed for developers who code more than they post.**
+> **Transform your GitHub activity into professional social media content — powered by AI, designed for developers who code more than they post.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/cliff-de-tech/linkedin-post-bot/ci.yml?branch=main&label=build)](https://github.com/cliff-de-tech/linkedin-post-bot/actions)
@@ -21,6 +21,8 @@ Most developers are active on GitHub but invisible on LinkedIn. Writing engaging
 - **Publishing directly to LinkedIn** through official OAuth APIs
 
 It's built for developers who want to grow their professional presence without spending hours crafting content.
+
+**Currently supports LinkedIn** with GitLab, Bitbucket, Twitter/X, and Threads coming in future updates.
 
 ---
 

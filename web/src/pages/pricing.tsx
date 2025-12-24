@@ -9,8 +9,8 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <SEOHead
-        title="Pricing - LinkedIn Post Bot"
-        description="Simple, transparent pricing for LinkedIn Post Bot. Choose the plan that works for you."
+        title="Pricing - Post Bot"
+        description="Simple, transparent pricing for Post Bot. Choose the plan that works for you."
       />
 
       {/* Header */}
@@ -23,7 +23,7 @@ export default function Pricing() {
               </svg>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LinkedIn Post Bot
+              Post Bot
             </span>
           </Link>
           <div className="flex items-center gap-4">

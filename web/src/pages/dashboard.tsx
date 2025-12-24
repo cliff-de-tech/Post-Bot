@@ -390,7 +390,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
       <SEOHead
-        title="Dashboard - LinkedIn Post Bot"
+        title="Dashboard - Post Bot"
         description="Generate and manage your LinkedIn posts with AI-powered content creation"
       />
       {/* Header */}
@@ -405,7 +405,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  LinkedIn Post Bot
+                  Post Bot
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">AI-Powered Content Creation</p>
               </div>

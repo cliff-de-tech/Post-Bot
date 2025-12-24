@@ -81,8 +81,8 @@ ${formData.message}
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <SEOHead
-        title="Support - LinkedIn Post Bot"
-        description="Get help with LinkedIn Post Bot. Contact our support team or browse FAQs."
+        title="Support - Post Bot"
+        description="Get help with Post Bot. Contact our support team or browse FAQs."
       />
 
       {/* Header */}
@@ -95,7 +95,7 @@ ${formData.message}
               </svg>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LinkedIn Post Bot
+              Post Bot
             </span>
           </Link>
           <div className="flex items-center gap-4">

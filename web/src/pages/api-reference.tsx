@@ -129,8 +129,8 @@ export default function APIReference() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <SEOHead
-        title="API Reference - LinkedIn Post Bot"
-        description="Complete API documentation for LinkedIn Post Bot. Integrate and automate your LinkedIn content creation."
+        title="API Reference - Post Bot"
+        description="Complete API documentation for Post Bot. Integrate and automate your LinkedIn content creation."
       />
 
       {/* Header */}
@@ -143,7 +143,7 @@ export default function APIReference() {
               </svg>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LinkedIn Post Bot
+              Post Bot
             </span>
           </Link>
           <div className="flex items-center gap-4">
@@ -162,7 +162,7 @@ export default function APIReference() {
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">API Reference</h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
-            Complete documentation for integrating with LinkedIn Post Bot API
+            Complete documentation for integrating with Post Bot API
           </p>
 
           <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-600 p-6 rounded-r-lg">

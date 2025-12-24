@@ -10,8 +10,8 @@ interface SEOHeadProps {
 }
 
 export default function SEOHead({
-  title = 'LinkedIn Post Bot - AI-Powered Content Creation',
-  description = 'Transform your GitHub activity into engaging LinkedIn posts automatically. AI-powered content generation with Groq LLM, activity tracking, and automated posting.',
+  title = 'Post Bot - AI-Powered Content Creation',
+  description = 'Transform your development activity into engaging social media posts automatically. AI-powered content generation with Groq LLM, activity tracking, and automated posting.',
   keywords = 'LinkedIn, automation, AI, content creation, social media, GitHub, posts, marketing, Groq, LLM',
   ogImage = '/og-image.png',
   ogUrl = 'https://linkedin-post-bot.com',
@@ -21,7 +21,7 @@ export default function SEOHead({
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'LinkedIn Post Bot',
+    name: 'Post Bot',
     description: description,
     applicationCategory: 'SocialNetworkingApplication',
     operatingSystem: 'Web',
@@ -43,7 +43,7 @@ export default function SEOHead({
       <title>{title}</title>
       <meta name="description" content={description} />
       <meta name="keywords" content={keywords} />
-      <meta name="author" content="LinkedIn Post Bot" />
+      <meta name="author" content="Post Bot" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
       <meta charSet="UTF-8" />
 
@@ -56,7 +56,7 @@ export default function SEOHead({
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={ogImage} />
-      <meta property="og:site_name" content="LinkedIn Post Bot" />
+      <meta property="og:site_name" content="Post Bot" />
       <meta property="og:locale" content="en_US" />
 
       {/* Twitter Card */}
@@ -75,7 +75,7 @@ export default function SEOHead({
       <meta name="format-detection" content="telephone=no" />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-      <meta name="apple-mobile-web-app-title" content="LinkedIn Bot" />
+      <meta name="apple-mobile-web-app-title" content="PostBot" />
       <meta name="mobile-web-app-capable" content="yes" />
 
       {/* Favicon */}

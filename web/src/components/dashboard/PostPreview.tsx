@@ -71,7 +71,7 @@ export const PostPreview: React.FC<PostPreviewProps> = ({ preview, imageUrl, onE
     const isOverLimit = charCount > 3000;
 
     return (
-        <div className="bg-slate-50 dark:bg-white/5 rounded-2xl shadow-md border border-slate-200 dark:border-white/10 p-6 h-full flex flex-col">
+        <div className="bg-slate-50 dark:bg-white/5 rounded-2xl shadow-md border border-slate-200 dark:border-white/10 p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -117,7 +117,7 @@ export const PostPreview: React.FC<PostPreviewProps> = ({ preview, imageUrl, onE
 
             {/* Post Preview Card */}
             <div
-                className="flex-1 bg-gray-50 dark:bg-[#1d2226] rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-h-[280px] flex flex-col"
+                className="bg-gray-50 dark:bg-[#1d2226] rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-[350px] overflow-y-auto"
                 style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}
             >
                 {preview ? (
@@ -208,21 +208,6 @@ export const PostPreview: React.FC<PostPreviewProps> = ({ preview, imageUrl, onE
                     </div>
                 </div>
             )}
-
-            {/* Tips */}
-            <div className="mt-4 bg-blue-50 dark:bg-blue-900/10 border-l-4 border-[#0a66c2] rounded-r-lg p-3">
-                <div className="flex items-start gap-2">
-                    <span className="text-lg">💡</span>
-                    <div>
-                        <p className="font-medium text-blue-900 dark:text-blue-100 text-sm mb-1">Quick Tips</p>
-                        <ul className="space-y-0.5 text-xs text-blue-700 dark:text-blue-200">
-                            <li>• LinkedIn posts with 1,300-1,600 characters perform best</li>
-                            <li>• Use line breaks to improve readability</li>
-                            <li>• 8-12 relevant hashtags increase visibility</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

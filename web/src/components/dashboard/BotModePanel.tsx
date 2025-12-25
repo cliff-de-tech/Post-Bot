@@ -571,6 +571,21 @@ export function BotModePanel({ userId, postsRemaining = 10, tier = 'free', isLim
                         </div>
                     </div>
 
+                    {/* Publish Limit Indicator - Generation is unlimited, publishing is limited */}
+                    <div className={`p-3 rounded-lg text-sm flex items-center justify-between ${postsRemaining === 0
+                        ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+                        : postsRemaining <= 3
+                            ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200'
+                            : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
+                        }`}>
+                        <span>
+                            {postsRemaining === 0
+                                ? '🚫 Daily publish limit reached. Try again tomorrow!'
+                                : `✨ Unlimited generation • ${postsRemaining} publish${postsRemaining !== 1 ? 'es' : ''} remaining today`
+                            }
+                        </span>
+                    </div>
+
                     {showSuggestions && (
                         <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
                             💡 No {activityType} activities found. Showing other recent activities instead.

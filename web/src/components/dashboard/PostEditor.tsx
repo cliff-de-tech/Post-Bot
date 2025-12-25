@@ -11,6 +11,10 @@ interface PostEditorProps {
     status: string;
     hasPreview: boolean;
     tier?: string;  // User's subscription tier
+    // Image support
+    selectedImage?: string | null;
+    onImageClick?: () => void;
+    onRemoveImage?: () => void;
 }
 
 // Post type options with free tier availability
@@ -29,7 +33,10 @@ export const PostEditor: React.FC<PostEditorProps> = ({
     loading,
     status,
     hasPreview,
-    tier = 'free'
+    tier = 'free',
+    selectedImage = null,
+    onImageClick,
+    onRemoveImage
 }) => {
     const handlePostTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newType = e.target.value;
@@ -176,6 +183,50 @@ export const PostEditor: React.FC<PostEditorProps> = ({
                         </button>
                     </div>
                 </div>
+
+                {/* Image Section */}
+                {hasPreview && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-white/10">
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            Post Image (Optional)
+                        </label>
+
+                        {selectedImage ? (
+                            <div className="relative group">
+                                <img
+                                    src={selectedImage}
+                                    alt="Selected post image"
+                                    className="w-full h-40 object-cover rounded-lg border-2 border-gray-200 dark:border-white/10"
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-3">
+                                    <button
+                                        onClick={onImageClick}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                                    >
+                                        Change Image
+                                    </button>
+                                    <button
+                                        onClick={onRemoveImage}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={onImageClick}
+                                disabled={!onImageClick}
+                                className="w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Click to add image from Unsplash</span>
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {status && (
                     <div className={`mt-4 p-4 rounded-lg border-2 ${status.includes('❌')

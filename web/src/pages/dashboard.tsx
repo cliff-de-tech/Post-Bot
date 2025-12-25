@@ -15,6 +15,7 @@ import Analytics from '@/components/dashboard/Analytics';
 import ScheduleModal from '@/components/dashboard/ScheduleModal';
 import TemplateLibrary from '@/components/dashboard/TemplateLibrary';
 import { BotModePanel } from '@/components/dashboard/BotModePanel';
+import { ImageSelector } from '@/components/dashboard/ImageSelector';
 import { GitHubActivity, Template, PostContext } from '@/types/dashboard';
 import UsageCounter from '@/components/ui/UsageCounter';
 import FeatureGate from '@/components/ui/FeatureGate';
@@ -114,6 +115,12 @@ export default function Dashboard() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackAutoTriggered, setFeedbackAutoTriggered] = useState(false);
   const [sessionPublishCount, setSessionPublishCount] = useState(0);
+
+  // Manual mode image state
+  const [manualSelectedImage, setManualSelectedImage] = useState<string | null>(null);
+  const [manualImages, setManualImages] = useState<Array<{ id: string, url: string, thumb: string, description: string, photographer: string, download_url: string }>>([]);
+  const [showImageSelector, setShowImageSelector] = useState(false);
+  const [loadingImages, setLoadingImages] = useState(false);
 
   // DEV TEST MODE: Skip auth and load directly
   useEffect(() => {
@@ -626,9 +633,27 @@ export default function Dashboard() {
               status={status}
               hasPreview={!!preview}
               tier={usage?.tier ?? 'free'}
+              selectedImage={manualSelectedImage}
+              onImageClick={async () => {
+                setLoadingImages(true);
+                setShowImageSelector(true);
+                try {
+                  const response = await axios.post(`${API_BASE}/api/image/preview`, {
+                    post_content: preview || 'coding developer tech',
+                    count: 6
+                  });
+                  setManualImages(response.data.images || []);
+                } catch (error) {
+                  showToast.error('Failed to load images');
+                  setManualImages([]);
+                } finally {
+                  setLoadingImages(false);
+                }
+              }}
+              onRemoveImage={() => setManualSelectedImage(null)}
             />
 
-            <PostPreview preview={preview} />
+            <PostPreview preview={preview} imageUrl={manualSelectedImage} />
           </div>
         </div>
       </main>
@@ -665,6 +690,34 @@ export default function Dashboard() {
         autoTriggered={feedbackAutoTriggered}
         autoDismissSeconds={35}
       />
+
+      {/* Manual Mode Image Selector */}
+      {showImageSelector && (
+        <ImageSelector
+          images={manualImages}
+          selectedImage={manualSelectedImage}
+          onSelect={(imageUrl) => {
+            setManualSelectedImage(imageUrl);
+            setShowImageSelector(false);
+          }}
+          onClose={() => setShowImageSelector(false)}
+          loading={loadingImages}
+          onRefresh={async () => {
+            setLoadingImages(true);
+            try {
+              const response = await axios.post(`${API_BASE}/api/image/preview`, {
+                post_content: preview || 'coding developer tech',
+                count: 6
+              });
+              setManualImages(response.data.images || []);
+            } catch (error) {
+              showToast.error('Failed to refresh images');
+            } finally {
+              setLoadingImages(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

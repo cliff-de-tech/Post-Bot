@@ -1288,33 +1288,9 @@ async def generate_batch_posts(req: BatchGenerateRequest):
     if not generate_post_with_ai:
         return {"error": "AI service not available"}
     
-    # Check free tier limits
-    if can_user_generate_posts:
-        try:
-            # Get user's subscription tier (default to free)
-            tier = "free"
-            if get_user_settings:
-                settings = await get_user_settings(req.user_id)
-                if settings:
-                    tier = settings.get('subscription_tier', 'free')
-            
-            # Check if user can generate the requested number of posts
-            limit_check = await can_user_generate_posts(req.user_id, len(req.activities), tier)
-            
-            if not limit_check.get("allowed"):
-                # Return 429 Too Many Requests with usage info
-                return {
-                    "success": False,
-                    "error": limit_check.get("reason", "Daily limit reached"),
-                    "limit_exceeded": True,
-                    "remaining": limit_check.get("remaining", 0),
-                    "posts": [],
-                    "generated_count": 0,
-                    "failed_count": 0
-                }
-        except Exception as e:
-            logger.error("Error checking usage limits", exc_info=True)
-            # Continue without limit check if there's an error
+    # NOTE: Post GENERATION is now unlimited to let users explore all AI tones
+    # The limit is only enforced on PUBLISHING (10/day for free tier)
+    # This allows users to find the perfect post before hitting the publish limit
     
     # Get user's Groq API key
 

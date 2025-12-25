@@ -86,6 +86,132 @@ STRUCTURE:
 6. Hashtags: #opentowork #fullstack #react #python #hiring ...
 
 TONE: Professional, capable, results-oriented, eager to contribute.
+""",
+
+    # New tones for variety in Bot Mode
+    "excited": """
+OBJECTIVE: Write a HIGH ENERGY post celebrating coding momentum!
+
+STRUCTURE:
+1. Hook: Start with excitement - "Just shipped!", "Finally got it working!", "BIG win today!"
+2. The Win: What did you accomplish? Make it sound exciting!
+3. The Feeling: How does it feel? Share the dopamine rush!
+4. Quick Insight: One lesson or realization
+5. Call to Action: "What are you building?" "Celebrate with me!"
+6. Hashtags: energetic and upbeat
+
+TONE: Enthusiastic, celebratory, infectious energy, capital letters okay, lots of emojis! 🎉🚀
+""",
+
+    "thoughtful": """
+OBJECTIVE: Write a REFLECTIVE post sharing deeper insights from coding.
+
+STRUCTURE:
+1. Hook: A thoughtful observation or question about the dev experience
+2. Context: What prompted this reflection?
+3. The Insight: What did you realize? Go deeper than surface level.
+4. Application: How does this change your approach?
+5. Call to Action: "What's your experience with this?"
+6. Hashtags: reflective and professional
+
+TONE: Contemplative, wise, introspective, like a mentor sharing wisdom.
+""",
+
+    "educational": """
+OBJECTIVE: Write a TEACHING post that provides value to readers.
+
+STRUCTURE:
+1. Hook: "TIL..." or "Quick tip:" or "Here's something many devs miss..."
+2. The Lesson: What did you learn? Explain it simply.
+3. Why It Matters: How does this help other developers?
+4. Example: Brief practical example or use case
+5. Call to Action: "Try this in your next project!"
+6. Hashtags: educational and helpful
+
+TONE: Teacher mode, clear, helpful, generous with knowledge.
+""",
+
+    "casual": """
+OBJECTIVE: Write a RELAXED, conversational post like talking to a friend.
+
+STRUCTURE:
+1. Hook: Start casual - "So I was coding today and..." or "Random thought..."
+2. The Story: Share what happened naturally
+3. The Punchline: What's the takeaway or funny moment?
+4. Closing: Something relatable
+5. Hashtags: casual and friendly
+
+TONE: Relaxed, friendly, conversational, like a chat over coffee. Use "haha" or "lol" if natural.
+""",
+
+    "motivational": """
+OBJECTIVE: Write an INSPIRING post that motivates other developers.
+
+STRUCTURE:
+1. Hook: An inspiring statement or personal challenge overcome
+2. The Struggle: What was hard? Be real about obstacles.
+3. The Breakthrough: What kept you going? What worked?
+4. The Message: Encourage others facing similar challenges
+5. Call to Action: "Keep pushing!" or "You've got this!"
+6. Hashtags: motivational and encouraging
+
+TONE: Uplifting, encouraging, supportive, you-can-do-it energy. 💪
+""",
+
+    "storytelling": """
+OBJECTIVE: Write a NARRATIVE post that tells a mini-story.
+
+STRUCTURE:
+1. Hook: Set the scene - "It was 2am and my code wasn't working..."
+2. Rising Action: Build tension - what was the challenge?
+3. The Climax: The breakthrough moment
+4. Resolution: How it ended
+5. The Moral: What's the lesson?
+6. Hashtags: storytelling and relatable
+
+TONE: Narrative, engaging, like a short story. Draw readers in.
+""",
+
+    "technical": """
+OBJECTIVE: Write a TECHNICAL post sharing specific dev knowledge.
+
+STRUCTURE:
+1. Hook: A specific technical problem or discovery
+2. Context: What were you building?
+3. The Details: Technical specifics (but accessible)
+4. The Solution: What worked and why
+5. Call to Action: "Have you tried this approach?"
+6. Hashtags: technical and specific
+
+TONE: Technical but accessible, sharing expertise, helpful to fellow devs.
+""",
+
+    "celebratory": """
+OBJECTIVE: Write a CELEBRATION post about an achievement!
+
+STRUCTURE:
+1. Hook: "WE DID IT!" or "Milestone unlocked!" 
+2. The Achievement: What did you accomplish?
+3. The Journey: Brief mention of what it took
+4. Gratitude: Thank anyone who helped
+5. What's Next: Tease future plans
+6. Hashtags: celebratory and grateful
+
+TONE: Celebrating, grateful, proud but humble. 🎊
+""",
+
+    "curious": """
+OBJECTIVE: Write a QUESTION-DRIVEN post to spark discussion.
+
+STRUCTURE:
+1. Hook: Start with a genuine question you're pondering
+2. Context: Why are you thinking about this?
+3. Your Thoughts: Share your current perspective
+4. Invite Input: "But I'm curious what you think..."
+5. Call to Action: Direct question to the audience
+6. Hashtags: discussion and community
+
+TONE: Curious, humble, genuinely seeking input, community-focused.
 """
 }
 

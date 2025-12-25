@@ -294,6 +294,10 @@ export default function Dashboard() {
 
       // Save as draft
       await savePost(result.post, 'draft');
+
+      // Refresh stats to update "Generated Posts" card immediately
+      await loadStats(userId);
+      await loadPostHistory(userId);
     } catch (error: any) {
       showToast.dismiss(toastId);
       showToast.error('Error: ' + error.message);
@@ -344,6 +348,10 @@ export default function Dashboard() {
             setFeedbackAutoTriggered(true);
             setShowFeedback(true);
           }
+
+          // Refresh stats to update "Published" card immediately
+          await loadStats(userId);
+          await loadPostHistory(userId);
         }
       }
     } catch (error: any) {

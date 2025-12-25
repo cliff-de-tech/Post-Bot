@@ -1329,13 +1329,35 @@ async def generate_batch_posts(req: BatchGenerateRequest):
     
     generated_posts = []
     
+    # Tone rotation for variety - each post gets a different style
+    # This ensures bot-generated posts are diverse and engaging
+    TONE_ROTATION = [
+        'standard',           # Default professional update
+        'excited',            # High energy and enthusiasm
+        'thoughtful',         # Reflective and insightful
+        'educational',        # Teach something valuable
+        'casual',             # Friendly and approachable
+        'motivational',       # Inspiring and encouraging
+        'storytelling',       # Narrative format
+        'technical',          # Deep dive details
+        'celebratory',        # Achievement focused
+        'curious',            # Question-driven engagement
+    ]
+    
     for idx, activity in enumerate(req.activities):
         try:
             # Extract context for AI generation
             context = activity.get('context', activity)
             
-            # Generate the post
-            post_content = generate_post_with_ai(context, groq_api_key=groq_api_key, style=req.style)
+            # Use rotating tones for variety - cycle through the array
+            # If user specified a style, use it; otherwise rotate through tones
+            if req.style and req.style != 'standard':
+                post_style = req.style
+            else:
+                post_style = TONE_ROTATION[idx % len(TONE_ROTATION)]
+            
+            # Generate the post with varied tone
+            post_content = generate_post_with_ai(context, groq_api_key=groq_api_key, style=post_style)
             
             if post_content:
                 generated_posts.append({

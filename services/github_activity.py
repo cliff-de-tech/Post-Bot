@@ -115,11 +115,41 @@ def parse_event(event):
         commits_data = payload.get('commits', [])
         commits_count = len(commits_data)
         
+        # If commits array is empty but we have head/before SHAs, try Compare API
+        # GitHub Events API sometimes doesn't include commits array
+        if commits_count == 0:
+            head_sha = payload.get('head')
+            before_sha = payload.get('before')
+            
+            # If we have both SHAs, try to get commit count from Compare API
+            if head_sha and before_sha and before_sha != '0000000000000000000000000000000000000000':
+                try:
+                    headers = {'Accept': 'application/vnd.github.v3+json'}
+                    app_token = os.getenv('GITHUB_TOKEN')
+                    if app_token:
+                        headers['Authorization'] = f'token {app_token}'
+                    
+                    compare_url = f"{GITHUB_API}/repos/{repo}/compare/{before_sha}...{head_sha}"
+                    compare_resp = requests.get(compare_url, headers=headers, timeout=5)
+                    
+                    if compare_resp.status_code == 200:
+                        compare_data = compare_resp.json()
+                        commits_count = compare_data.get('total_commits', 0)
+                        # Get commit messages from compare
+                        compare_commits = compare_data.get('commits', [])
+                        commits_data = compare_commits  # Use for message extraction
+                        logger.info(f"Got {commits_count} commits from Compare API for {repo}")
+                except Exception as e:
+                    logger.warning(f"Compare API failed for {repo}: {e}")
+                    # Fall back to assuming at least 1 commit since there was a push
+                    commits_count = 1
+        
         # Extract commit messages for personalized posts (Pro feature)
         # Limit to 5 messages, truncate each to 100 chars
         commit_messages = []
         for commit in commits_data[:5]:
-            message = commit.get('message', '')
+            # Handle both Events API format and Compare API format
+            message = commit.get('message') or commit.get('commit', {}).get('message', '')
             # Take first line only and truncate
             first_line = message.split('\n')[0][:100]
             if first_line:

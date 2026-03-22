@@ -44,5 +44,5 @@ mistralai==1.2.5
 
 # Production server
 gunicorn==21.2.0
-beautifulsoup4==4.12.3
+beautifulsoup4==4.14.3
 tweepy==4.16.0

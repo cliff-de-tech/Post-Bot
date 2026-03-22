@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload last generated post
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: generated-posts
           path: last_generated_post.txt

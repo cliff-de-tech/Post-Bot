@@ -44,6 +44,19 @@ describe('Smoke Tests', () => {
     });
 
     describe('Mocks', () => {
+        let savedFetch: typeof global.fetch;
+
+        beforeAll(() => {
+            savedFetch = global.fetch;
+            global.fetch = jest.fn(() =>
+                Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response)
+            );
+        });
+
+        afterAll(() => {
+            global.fetch = savedFetch;
+        });
+
         it('should have fetch mocked', () => {
             expect(global.fetch).toBeDefined();
             expect(typeof global.fetch).toBe('function');

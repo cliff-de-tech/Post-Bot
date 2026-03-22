@@ -78,7 +78,15 @@ jest.mock('@/components/dashboard/BotModePanel', () => ({
 }));
 jest.mock('@/components/ui/AIStatusMessage', () => ({
   AIStatusMessage: () => null,
-  useAIStatus: () => ({ status: null, message: null }),
+  useAIStatus: () => ({
+    messages: [],
+    isActive: false,
+    show: jest.fn(),
+    update: jest.fn(),
+    complete: jest.fn(),
+    error: jest.fn(),
+    dismiss: jest.fn(),
+  }),
 }));
 jest.mock('@/components/dashboard/DashboardSkeleton', () => ({
   __esModule: true,
@@ -119,6 +127,10 @@ jest.mock('@/store/useDraftStore', () => ({
 
 describe('Dashboard Component', () => {
   const mockPush = jest.fn();
+
+  afterAll(() => {
+    jest.clearAllTimers();
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();

@@ -27,6 +27,12 @@ RATE_LIMIT_REQUESTS = int(os.getenv('RATE_LIMIT_REQUESTS', '60'))
 RATE_LIMIT_WINDOW_SECONDS = int(os.getenv('RATE_LIMIT_WINDOW', '60'))
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
+# Per-endpoint rate limit configuration
+POST_GENERATION_RATE_LIMIT = int(os.getenv('POST_GENERATION_RATE_LIMIT', '10'))
+POST_GENERATION_RATE_WINDOW = int(os.getenv('POST_GENERATION_RATE_WINDOW', '3600'))
+PUBLISH_RATE_LIMIT = int(os.getenv('PUBLISH_RATE_LIMIT', '5'))
+PUBLISH_RATE_WINDOW = int(os.getenv('PUBLISH_RATE_WINDOW', '3600'))
+
 # Try to connect to Redis
 _redis_client = None
 try:
@@ -182,6 +188,16 @@ class RateLimiter:
 
 # Global rate limiter instance
 rate_limiter = RateLimiter()
+
+# Per-endpoint limiters (used by backend routes)
+post_generation_limiter = RateLimiter(
+    max_requests=POST_GENERATION_RATE_LIMIT,
+    window_seconds=POST_GENERATION_RATE_WINDOW,
+)
+publish_limiter = RateLimiter(
+    max_requests=PUBLISH_RATE_LIMIT,
+    window_seconds=PUBLISH_RATE_WINDOW,
+)
 
 
 def check_rate_limit(user_id: str) -> tuple[bool, dict]:

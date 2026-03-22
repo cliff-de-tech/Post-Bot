@@ -23,10 +23,10 @@ CLERK_JWKS_URL = f"{CLERK_ISSUER}/.well-known/jwks.json" if CLERK_ISSUER else No
 # Security scheme
 security = HTTPBearer(auto_error=False)
 
-# JWKS cache with TTL (1 hour)
+# JWKS cache with TTL (default 1 hour, configurable via JWKS_CACHE_TTL_SECONDS)
 _jwks_cache = None
 _jwks_cache_time = 0
-JWKS_CACHE_TTL = 3600  # 1 hour
+JWKS_CACHE_TTL = int(os.getenv('JWKS_CACHE_TTL_SECONDS', '3600'))
 
 
 def get_jwks():

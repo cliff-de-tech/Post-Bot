@@ -28,8 +28,10 @@ Token Lifecycle:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import quote
@@ -69,6 +71,9 @@ structlog.configure(
 )
 
 logger = structlog.get_logger(__name__)
+
+# Per-user asyncio locks to prevent concurrent token refresh races
+_refresh_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 # =============================================================================
 # CONFIGURATION
@@ -721,37 +726,56 @@ async def get_access_token_for_urn(
     user_id = token_row.get('user_id')  # Extract for logging context
 
     now = int(time.time())
-    
+
     # Check if token needs refresh (within buffer period of expiry)
     if expires_at and (expires_at - now) <= refresh_buffer:
-        log.info(
-            "token_refresh_required",
-            user_id=user_id,
-            expires_in_seconds=expires_at - now,
-            refresh_buffer=refresh_buffer,
-        )
-        
-        if not refresh_token:
-            log.error("no_refresh_token_available", user_id=user_id)
-            raise TokenRefreshError(
-                message="No refresh token available to refresh access token",
+        # Acquire per-user lock to prevent concurrent refresh races.
+        # Only one coroutine will perform the refresh; others wait and reuse
+        # the freshly stored token once the lock is released.
+        lock_key = user_id if user_id is not None else linkedin_user_urn
+        async with _refresh_locks[lock_key]:
+            # Re-fetch after acquiring the lock — another coroutine may have
+            # already refreshed and stored the token while we were waiting.
+            token_row = await get_token_by_urn(linkedin_user_urn)
+            if token_row:
+                access_token = token_row.get('access_token')
+                refresh_token = token_row.get('refresh_token')
+                expires_at = token_row.get('expires_at')
+
+            now = int(time.time())
+            if expires_at and (expires_at - now) > refresh_buffer:
+                # Another coroutine already refreshed — return the new token.
+                log.info("token_refresh_skipped_already_refreshed", user_id=user_id)
+                return access_token
+
+            log.info(
+                "token_refresh_required",
                 user_id=user_id,
-                provider="linkedin",
+                expires_in_seconds=expires_at - now if expires_at else None,
+                refresh_buffer=refresh_buffer,
             )
-        
-        refreshed = refresh_access_token(refresh_token, user_id=user_id)
-        
-        # Update stored token with new values
-        # IMPORTANT: Pass user_id to preserve the user association
-        await save_token(
-            linkedin_user_urn, 
-            refreshed.access_token, 
-            refreshed.refresh_token, 
-            refreshed.expires_at,
-            user_id=user_id,
-        )
-        
-        log.info("token_refreshed_and_stored", user_id=user_id)
-        return refreshed.access_token
+
+            if not refresh_token:
+                log.error("no_refresh_token_available", user_id=user_id)
+                raise TokenRefreshError(
+                    message="No refresh token available to refresh access token",
+                    user_id=user_id,
+                    provider="linkedin",
+                )
+
+            refreshed = refresh_access_token(refresh_token, user_id=user_id)
+
+            # Update stored token with new values
+            # IMPORTANT: Pass user_id to preserve the user association
+            await save_token(
+                linkedin_user_urn,
+                refreshed.access_token,
+                refreshed.refresh_token,
+                refreshed.expires_at,
+                user_id=user_id,
+            )
+
+            log.info("token_refreshed_and_stored", user_id=user_id)
+            return refreshed.access_token
 
     return access_token

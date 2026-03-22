@@ -14,7 +14,7 @@ PyJWT==2.10.1
 cryptography==46.0.3
 
 # Caching utilities
-cachetools==5.5.2
+cachetools==7.0.5
 
 # Structured logging
 structlog==25.5.0

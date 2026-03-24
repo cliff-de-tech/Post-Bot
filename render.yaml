@@ -216,8 +216,10 @@ services:
       - key: NEXT_PUBLIC_API_URL
         sync: false
       
-      # Clerk Authentication (public key)
+      # Clerk Authentication
       - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
         sync: false
       
       # OAuth Redirect URI

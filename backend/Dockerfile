@@ -23,7 +23,7 @@ USER appuser
 EXPOSE 8000
 
 # Production Command: Run Alembic migrations, then start Gunicorn with Uvicorn workers
-# -w 4: Use 4 worker processes (adjust based on CPU cores)
+# -w ${GUNICORN_WORKERS:-2}: Worker count (default 2; set GUNICORN_WORKERS env var to tune)
 # -k uvicorn.workers.UvicornWorker: Use async workers
 # --bind 0.0.0.0:8000: Listen on all interfaces
-CMD ["sh", "-c", "cd /app/backend && alembic upgrade head && cd /app && gunicorn -w 4 -k uvicorn.workers.UvicornWorker backend.app:app --bind 0.0.0.0:8000"]
+CMD ["sh", "-c", "cd /app/backend && alembic upgrade head && cd /app && gunicorn -w ${GUNICORN_WORKERS:-2} -k uvicorn.workers.UvicornWorker backend.app:app --bind 0.0.0.0:8000"]

@@ -28,7 +28,7 @@ aiosqlite==0.22.0
 sqlalchemy==2.0.45
 
 # Database migrations
-alembic==1.13.0
+alembic==1.18.4
 
 # Task Queue (Redis + Celery)
 redis==7.1.0

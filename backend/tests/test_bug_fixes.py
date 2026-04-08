@@ -24,7 +24,6 @@ from unittest.mock import patch, MagicMock, AsyncMock
 # Ensure services are importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-
 # ============================================================================
 # 1. PROMPT INJECTION SANITIZATION
 # ============================================================================
@@ -391,6 +390,15 @@ class TestTierEnforcement:
         assert provider == ModelProvider.ANTHROPIC
         assert downgraded is False
 
+    def test_pro_user_can_use_gemini(self):
+        from services.ai_service import enforce_tier_provider, ModelProvider, SubscriptionTier
+
+        provider, downgraded = enforce_tier_provider(
+            ModelProvider.GEMINI, SubscriptionTier.PRO
+        )
+        assert provider == ModelProvider.GEMINI
+        assert downgraded is False
+
 
 # ============================================================================
 # 7. PERSONA DEEPCOPY ISOLATION
@@ -539,7 +547,7 @@ class TestTokenValidatorAsyncBridge:
 
 
 # ============================================================================
-# 12. GET AVAILABLE PROVIDERS (includes Mistral)
+# 12. GET AVAILABLE PROVIDERS (includes Mistral + Gemini)
 # ============================================================================
 
 class TestGetAvailableProviders:
@@ -551,10 +559,16 @@ class TestGetAvailableProviders:
         assert "mistral" in providers
         assert providers["mistral"]["tier"] == "free"
 
-    def test_includes_all_four_providers(self):
+    def test_includes_all_five_providers(self):
         from services.ai_service import get_available_providers
         providers = get_available_providers()
-        assert set(providers.keys()) == {"groq", "mistral", "openai", "anthropic"}
+        assert set(providers.keys()) == {"groq", "mistral", "openai", "anthropic", "gemini"}
+
+    def test_includes_gemini_as_pro_provider(self):
+        from services.ai_service import get_available_providers
+        providers = get_available_providers()
+        assert "gemini" in providers
+        assert providers["gemini"]["tier"] == "pro"
 
     def test_provider_has_expected_keys(self):
         from services.ai_service import get_available_providers

@@ -1028,7 +1028,6 @@ def _generate_with_gemini(
     try:
         genai.configure(api_key=key)
 
-<<<<<<< HEAD
         model = genai.GenerativeModel(
             model_name=GEMINI_MODEL,
             system_instruction=system_prompt,
@@ -1036,13 +1035,6 @@ def _generate_with_gemini(
                 temperature=temperature,
                 max_output_tokens=1000,
             ),
-=======
-        response = requests.post(
-            url,
-            headers={"x-goog-api-key": key},
-            json=payload,
-            timeout=30,
->>>>>>> baab94cc96e113d7051d83e2d4afa4aea536acb8
         )
 
         response = model.generate_content(user_prompt)

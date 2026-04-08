@@ -1025,7 +1025,6 @@ linkedin-post-bot/
 │   ├── tests/                  # Backend test suite (5 files, 84+ tests)
 │   └── dependencies.py         # DI helpers
 ├── services/                   # Core Business Logic
-│   ├── ai_service.py           # Multi-provider AI (Groq, OpenAI, Anthropic,  or Gemini)
 │   ├── ai_service.py           # Multi-provider AI (Groq, OpenAI, Anthropic, Mistral, or Gemini)
 │   ├── github_activity.py      # GitHub API client (with TTLCache)
 │   ├── linkedin_service.py     # LinkedIn posting

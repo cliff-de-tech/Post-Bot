@@ -6,6 +6,7 @@ with support for multiple providers:
 - Groq (Free tier) - Default, uses Llama 3.3 70B
 - OpenAI (Pro tier) - GPT-4o
 - Anthropic (Pro tier) - Claude 3.5 Sonnet
+- Gemini (Pro tier) - Gemini 1.5 Flash
 
 TIER ENFORCEMENT:
 - Free users are ALWAYS routed to Groq, even if they request premium models
@@ -52,6 +53,13 @@ except ImportError:
     Mistral = None  # type: ignore
     MISTRAL_AVAILABLE = False
 
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    genai = None  # type: ignore
+    GEMINI_AVAILABLE = False
+
 logger = structlog.get_logger(__name__)
 
 # =============================================================================
@@ -70,6 +78,7 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
 MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GITHUB_USERNAME = os.getenv('GITHUB_USERNAME', '')
 
 # Model configurations
@@ -77,6 +86,7 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 OPENAI_MODEL = "gpt-4o"
 ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
 MISTRAL_MODEL = "mistral-large-latest"
+GEMINI_MODEL = "gemini-1.5-flash"
 
 # =============================================================================
 # AI CLIENT CACHE (keyed by API key to support per-user credentials)
@@ -149,6 +159,7 @@ class ModelProvider(str, Enum):
     MISTRAL = "mistral"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
 
 
 class SubscriptionTier(str, Enum):
@@ -161,8 +172,8 @@ class SubscriptionTier(str, Enum):
 # Providers available to each tier
 TIER_ALLOWED_PROVIDERS = {
     SubscriptionTier.FREE: [ModelProvider.GROQ, ModelProvider.MISTRAL],
-    SubscriptionTier.PRO: [ModelProvider.GROQ, ModelProvider.MISTRAL, ModelProvider.OPENAI, ModelProvider.ANTHROPIC],
-    SubscriptionTier.ENTERPRISE: [ModelProvider.GROQ, ModelProvider.MISTRAL, ModelProvider.OPENAI, ModelProvider.ANTHROPIC],
+    SubscriptionTier.PRO: [ModelProvider.GROQ, ModelProvider.MISTRAL, ModelProvider.OPENAI, ModelProvider.ANTHROPIC, ModelProvider.GEMINI],
+    SubscriptionTier.ENTERPRISE: [ModelProvider.GROQ, ModelProvider.MISTRAL, ModelProvider.OPENAI, ModelProvider.ANTHROPIC, ModelProvider.GEMINI],
 }
 
 
@@ -994,6 +1005,59 @@ def _generate_with_mistral(
         return None
 
 
+def _generate_with_gemini(
+    system_prompt: str,
+    user_prompt: str,
+    api_key: Optional[str] = None,
+    temperature: float = 0.8,
+) -> Optional[str]:
+    """
+    Generate post using Google Gemini API via the official Python SDK.
+
+    This is a PRO tier provider.
+    """
+    if not GEMINI_AVAILABLE:
+        logger.error("Google Generative AI package not installed")
+        return None
+
+    key = api_key or GEMINI_API_KEY
+    if not key:
+        logger.warning("No Gemini API key available")
+        return None
+
+    try:
+        genai.configure(api_key=key)
+
+<<<<<<< HEAD
+        model = genai.GenerativeModel(
+            model_name=GEMINI_MODEL,
+            system_instruction=system_prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=1000,
+            ),
+=======
+        response = requests.post(
+            url,
+            headers={"x-goog-api-key": key},
+            json=payload,
+            timeout=30,
+>>>>>>> baab94cc96e113d7051d83e2d4afa4aea536acb8
+        )
+
+        response = model.generate_content(user_prompt)
+
+        if response.text:
+            return response.text
+
+        logger.warning("gemini_empty_response", model=GEMINI_MODEL, parts=getattr(response, "parts", None))
+        return None
+
+    except Exception as e:
+        logger.error("gemini_generation_failed", error=str(e))
+        return None
+
+
 # =============================================================================
 # TIER ENFORCEMENT & ROUTING
 # =============================================================================
@@ -1067,6 +1131,7 @@ async def generate_linkedin_post(
     openai_api_key: Optional[str] = None,
     anthropic_api_key: Optional[str] = None,
     mistral_api_key: Optional[str] = None,
+    gemini_api_key: Optional[str] = None,
     persona_context: Optional[str] = None,
 ) -> Optional[GenerationResult]:
     """
@@ -1084,6 +1149,7 @@ async def generate_linkedin_post(
         groq_api_key: Optional override for Groq API key
         openai_api_key: Optional override for OpenAI API key
         anthropic_api_key: Optional override for Anthropic API key
+        gemini_api_key: Optional override for Gemini API key
         persona_context: Optional persona prompt string
         
     Returns:
@@ -1135,6 +1201,7 @@ async def generate_linkedin_post(
         ModelProvider.MISTRAL: (_generate_with_mistral, mistral_api_key, MISTRAL_MODEL),
         ModelProvider.OPENAI: (_generate_with_openai, openai_api_key, OPENAI_MODEL),
         ModelProvider.ANTHROPIC: (_generate_with_anthropic, anthropic_api_key, ANTHROPIC_MODEL),
+        ModelProvider.GEMINI: (_generate_with_gemini, gemini_api_key, GEMINI_MODEL),
     }
     
     # Build fallback chain: requested provider first, then others allowed by tier
@@ -1262,6 +1329,11 @@ def get_available_providers() -> dict:
         "anthropic": {
             "available": bool(ANTHROPIC_API_KEY),
             "model": ANTHROPIC_MODEL,
+            "tier": "pro",
+        },
+        "gemini": {
+            "available": bool(GEMINI_API_KEY),
+            "model": GEMINI_MODEL,
             "tier": "pro",
         },
     }

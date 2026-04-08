@@ -17,7 +17,7 @@
 Most developers are active on GitHub but invisible on LinkedIn. Writing engaging posts takes time, and consistency is hard. This tool bridges the gap by:
 
 - **Scanning your GitHub activity** to find meaningful coding moments
-- **Generating professional posts** using AI (Groq, OpenAI, Anthropic, or Mistral)
+- **Generating professional posts** using AI (Groq, OpenAI, Anthropic, Mistral or Gemini)
 - **Publishing directly to LinkedIn** through official OAuth APIs
 
 It's built for developers who want to grow their professional presence without spending hours crafting content.
@@ -31,7 +31,7 @@ It's built for developers who want to grow their professional presence without s
 | Feature | Description |
 |---------|-------------|
 | **GitHub Activity Scanning** | Fetches your public commits, PRs, pushes, and new repos |
-| **AI Post Generation** | Multi-provider AI (Groq, OpenAI, Anthropic, Mistral) for natural, engaging LinkedIn content |
+| **AI Post Generation** | Multi-provider AI (Groq, OpenAI, Anthropic, Mistral and Gemini) for natural, engaging LinkedIn content |
 | **OAuth-based LinkedIn Posting** | Publishes via LinkedIn's official API with your authorization |
 | **Web Dashboard** | Modern UI with dark/light mode, stats, and post management |
 | **Multi-User Support** | Per-user credentials with Clerk authentication |
@@ -534,7 +534,7 @@ py tests/verify_phase2_security.py
 | **Backend** | Python 3.11, FastAPI 0.125, Gunicorn + Uvicorn |
 | **Database** | PostgreSQL (asyncpg) / SQLite (development), SQLAlchemy 2.0, Alembic |
 | **Authentication** | Clerk (frontend), JWT verification (backend) |
-| **AI** | Groq (llama-3.3-70b), OpenAI (gpt-4o), Anthropic (claude-3.5-sonnet), Mistral (mistral-large) |
+| **AI** | Groq (llama-3.3-70b), OpenAI (gpt-4o), Anthropic (claude-3.5-sonnet), Mistral (mistral-large), Gemini (gemini-1.5-flash) |
 | **Task Queue** | Celery 5.6 + Redis 7 |
 | **Payments** | Paystack |
 | **Logging** | structlog (structured JSON logging) |
@@ -764,7 +764,7 @@ PostBot uses a modern microservices architecture for reliability and scalability
 - Clerk account ([clerk.com](https://clerk.com))
 - LinkedIn Developer App ([developers.linkedin.com](https://www.linkedin.com/developers))
 - Groq API key ([console.groq.com](https://console.groq.com))
-- (Optional) OpenAI, Anthropic, or Mistral API key for Pro tier AI
+- (Optional) OpenAI, Anthropic, Mistral or Gemini API key for Pro tier AI
 
 ---
 
@@ -1025,7 +1025,8 @@ linkedin-post-bot/
 │   ├── tests/                  # Backend test suite (5 files, 84+ tests)
 │   └── dependencies.py         # DI helpers
 ├── services/                   # Core Business Logic
-│   ├── ai_service.py           # Multi-provider AI (Groq, OpenAI, Anthropic, Mistral)
+│   ├── ai_service.py           # Multi-provider AI (Groq, OpenAI, Anthropic,  or Gemini)
+│   ├── ai_service.py           # Multi-provider AI (Groq, OpenAI, Anthropic, Mistral, or Gemini)
 │   ├── github_activity.py      # GitHub API client (with TTLCache)
 │   ├── linkedin_service.py     # LinkedIn posting
 │   ├── persona_analyzer.py     # AI persona analysis
@@ -1143,7 +1144,7 @@ CLI (bot.py)                Web (backend/app.py)
 - [x] Post drafts with save/restore
 - [x] AI persona customization (tone, style)
 - [x] Docker deployment package
-- [x] Multi-provider AI (Groq, OpenAI, Anthropic, Mistral)
+- [x] Multi-provider AI (Groq, OpenAI, Anthropic, Mistral, Gemini)
 - [x] Paystack payment integration
 - [x] Full accessibility (ARIA, focus trapping, keyboard nav)
 - [x] Interactive AI status messages (personalised chat bubbles)

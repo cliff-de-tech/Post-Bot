@@ -126,7 +126,7 @@ from repositories.posts import PostRepository
 class GenerateRequest(BaseModel):
     context: dict
     user_id: Optional[str] = None
-    model: Optional[str] = "groq"  # groq (free), openai (pro), anthropic (pro)
+    model: Optional[str] = "groq"  # groq (free), mistral (free), openai/anthropic/gemini (pro)
     style: Optional[str] = "standard"  # template style
 
 
@@ -182,7 +182,7 @@ async def generate_preview(
     
     Supports multiple AI providers with tier enforcement:
     - Free tier: Always routes to Groq (fast, free)
-    - Pro tier: Can choose groq, openai (GPT-4o), or anthropic (Claude 3.5)
+    - Pro tier: Can choose groq, mistral, openai (GPT-4o), anthropic (Claude 3.5), or gemini
     """
     if not generate_linkedin_post:
         # Fallback to legacy if new function unavailable
@@ -206,6 +206,7 @@ async def generate_preview(
     groq_api_key = None
     openai_api_key = None
     anthropic_api_key = None
+    gemini_api_key = None
     
     if user_id and get_user_settings:
         try:
@@ -214,6 +215,7 @@ async def generate_preview(
                 groq_api_key = settings.get('groq_api_key')
                 openai_api_key = settings.get('openai_api_key')
                 anthropic_api_key = settings.get('anthropic_api_key')
+                gemini_api_key = settings.get('gemini_api_key')
         except Exception as e:
             logger.warning("failed_to_get_user_settings", error=str(e))
     
@@ -237,6 +239,7 @@ async def generate_preview(
             groq_api_key=groq_api_key,
             openai_api_key=openai_api_key,
             anthropic_api_key=anthropic_api_key,
+            gemini_api_key=gemini_api_key,
             persona_context=persona_context,
         )
         
@@ -299,6 +302,7 @@ async def repurpose_url(
     groq_api_key = None
     openai_api_key = None
     anthropic_api_key = None
+    gemini_api_key = None
     
     if get_user_settings:
         try:
@@ -307,6 +311,7 @@ async def repurpose_url(
                 groq_api_key = settings.get('groq_api_key')
                 openai_api_key = settings.get('openai_api_key')
                 anthropic_api_key = settings.get('anthropic_api_key')
+                gemini_api_key = settings.get('gemini_api_key')
         except Exception as e:
             logger.warning("failed_to_get_user_settings", error=str(e))
             
@@ -334,6 +339,7 @@ async def repurpose_url(
         groq_api_key=groq_api_key,
         openai_api_key=openai_api_key,
         anthropic_api_key=anthropic_api_key,
+        gemini_api_key=gemini_api_key,
         persona_context=persona_context,
     )
     
@@ -411,7 +417,7 @@ async def generate_batch(
     
     Supports tier-based model selection:
     - Free tier: Always Groq
-    - Pro tier: Can specify groq, openai, or anthropic
+    - Pro tier: Can specify groq, mistral, openai, anthropic, or gemini
     """
     if not generate_linkedin_post and not generate_post_with_ai:
         raise HTTPException(status_code=503, detail="AI service not available")
@@ -430,6 +436,7 @@ async def generate_batch(
     groq_api_key = None
     openai_api_key = None
     anthropic_api_key = None
+    gemini_api_key = None
     persona_context = None
     
     if user_id and get_user_settings:
@@ -439,6 +446,7 @@ async def generate_batch(
                 groq_api_key = settings.get('groq_api_key')
                 openai_api_key = settings.get('openai_api_key')
                 anthropic_api_key = settings.get('anthropic_api_key')
+                gemini_api_key = settings.get('gemini_api_key')
         except Exception as e:
             logger.warning("failed_to_get_user_settings", error=str(e))
     
@@ -479,6 +487,7 @@ async def generate_batch(
                     groq_api_key=groq_api_key,
                     openai_api_key=openai_api_key,
                     anthropic_api_key=anthropic_api_key,
+                    gemini_api_key=gemini_api_key,
                     persona_context=persona_context,
                 )
                 
@@ -606,8 +615,10 @@ async def list_providers(
         return {
             "providers": {
                 "groq": {"available": False, "model": "unknown", "tier": "free"},
+                "mistral": {"available": False, "model": "unknown", "tier": "free"},
                 "openai": {"available": False, "model": "unknown", "tier": "pro"},
                 "anthropic": {"available": False, "model": "unknown", "tier": "pro"},
+                "gemini": {"available": False, "model": "unknown", "tier": "pro"},
             },
             "user_tier": "free",
         }

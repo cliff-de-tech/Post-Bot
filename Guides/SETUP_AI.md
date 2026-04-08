@@ -1,6 +1,6 @@
 # AI Integration Setup Guide
 
-PostBot supports **4 AI providers** for LinkedIn post generation. Groq is the default (free tier). Users can switch providers from the dashboard settings.
+PostBot supports **5 AI providers** for LinkedIn post generation. Groq is the default (free tier). Users can switch providers from the dashboard settings.
 
 ## Supported Providers
 
@@ -10,6 +10,7 @@ PostBot supports **4 AI providers** for LinkedIn post generation. Groq is the de
 | **OpenAI** | gpt-4o | Pro | `OPENAI_API_KEY` |
 | **Anthropic** | claude-3-5-sonnet-20241022 | Pro | `ANTHROPIC_API_KEY` |
 | **Mistral** | mistral-large-latest | Pro | `MISTRAL_API_KEY` |
+| **Gemini** | gemini-1.5-flash | Pro | `GEMINI_API_KEY` |
 
 ## Quick Setup
 
@@ -21,6 +22,7 @@ PostBot supports **4 AI providers** for LinkedIn post generation. Groq is the de
 | OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
 | Anthropic | [console.anthropic.com](https://console.anthropic.com) |
 | Mistral | [console.mistral.ai](https://console.mistral.ai) |
+| Gemini | [aistudio.google.com](https://aistudio.google.com) |
 
 ### 2. Set Environment Variables
 
@@ -31,6 +33,7 @@ GROQ_API_KEY=gsk_...
 OPENAI_API_KEY=sk-...          # optional
 ANTHROPIC_API_KEY=sk-ant-...   # optional
 MISTRAL_API_KEY=...            # optional
+GEMINI_API_KEY=...             # optional
 ```
 
 At least one provider key is required. Groq is recommended for development (free tier).
@@ -68,6 +71,7 @@ Each user has a persona profile (built via `services/persona_service.py`) that s
 - Post length preferences
 - Hashtag strategy
 - Industry context
+
 ## Troubleshooting
 
 | Error | Solution |

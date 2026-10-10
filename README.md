@@ -162,7 +162,6 @@ It's built for developers who want to grow their professional presence without s
 ### Sign-Up / Sign-In UX Redesign ✨
 
 - **Glassmorphism Panels**: Right-side panels on sign-up and sign-in pages with gradient backgrounds and frosted-glass cards.
-- **Trust Signals**: Real metrics ("500+ developers", "10K+ posts generated") displayed alongside the auth forms.
 - **Quick Stats Grid**: Feature highlights with icons — AI-Powered, GitHub Sync, Smart Scheduling, Analytics.
 - **Consistent Branding**: Both auth pages share the same visual language as the landing page.
 
